@@ -415,6 +415,26 @@ as the route, and offers **Implement** (emits `implement(item)`; the host decide
 means) and **Reject** (asks for a reason inline, then calls `resolve`). It is native
 elements only, every state carries a text label, and the controls are keyboard-complete.
 
+Two props and a slot let a host act on and restrict the list without CSS:
+
+- **`open` (emit) and `#target` (slot).** When the host listens for `open`
+  (`<AnnotationList @open="…">`), each target renders as a `type="button"` that emits
+  `open(item)` on click and on Enter (Space works natively); the host decides what opening
+  means (the SKAILE forge opens the file in its Files tab). The listener is detected at
+  render time: without `@open` the target stays the plain `<code>` it always was, so a
+  list that only displays targets gets no extra tab stops. The `target` scoped slot
+  receives `{ item, text }`, where `text` is the default (`file:line:col` or the route),
+  and replaces the target's content; inside the button when `@open` is handled.
+  ```vue
+  <AnnotationList :annotations="annotations" @open="openFile">
+    <template #target="{ item, text }">{{ item.target.kind === 'route' ? text : basename(text) }}</template>
+  </AnnotationList>
+  ```
+- **`readonly` (boolean prop).** Hides Implement and Reject on every note, and the rejection
+  form with them; the list has no other write controls, so a bulk action cannot appear.
+  Notes, filter, **Refresh** and polling keep working. Use it for viewers that may not
+  resolve notes.
+
 ### Theming: the `--sk-*` tokens
 
 The list is styled only by these CSS variables, the same names the other `@skaile-ai`

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId } from 'vue'
+import { computed, getCurrentInstance, nextTick, ref, useId } from 'vue'
 import type { InboxItem } from '../../modules/annotation-inbox/contract'
 import type { UseAnnotations } from './useAnnotations'
 
@@ -14,15 +14,32 @@ import type { UseAnnotations } from './useAnnotations'
  * Implement does not resolve anything — the host decides what implementing
  * means (the SKAILE forge hands the note to an agent) and resolves when done.
  * Reject asks for a reason inline, then calls `resolve`.
+ *
+ * `readonly` hides Implement and Reject (the list still reads and refreshes).
+ * When the host listens for `open`, the target becomes a button that emits
+ * `open(item)` on click and Enter; without a listener it stays plain text.
+ * The `target` slot replaces the target's content (`{ item, text }`).
  */
 const props = defineProps<{
   /** The object `useAnnotations()` returned. */
   annotations: UseAnnotations
+  /** Read-only view: no Implement / Reject. */
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
   implement: [item: InboxItem]
+  open: [item: InboxItem]
 }>()
+
+defineSlots<{
+  /** Content of the target; `text` is the default (`file:line:col` or the route). */
+  target?: (props: { item: InboxItem, text: string }) => unknown
+}>()
+
+const instance = getCurrentInstance()
+// Read at render time: the target is only a button when the host handles `open`.
+const openable = () => !!instance?.vnode.props?.onOpen
 
 const t = props.annotations.t
 const uid = useId()
@@ -121,7 +138,19 @@ const targetKind = (item: InboxItem) => item.target.kind === 'route' ? t('item.r
           <div class="sk-annotations__row">
             <span class="sk-annotations__badge" :data-status="item.status">{{ statusLabel(item) }}</span>
             <span class="sk-annotations__muted">{{ targetKind(item) }}</span>
-            <code class="sk-annotations__target" :title="item.target.label">{{ item.target.ref }}</code>
+            <button
+              v-if="openable()"
+              type="button"
+              class="sk-annotations__target sk-annotations__target--open"
+              :title="item.target.label"
+              @click="emit('open', item)"
+              @keydown.enter.prevent="emit('open', item)"
+            >
+              <slot name="target" :item="item" :text="item.target.ref"><code>{{ item.target.ref }}</code></slot>
+            </button>
+            <slot v-else name="target" :item="item" :text="item.target.ref">
+              <code class="sk-annotations__target" :title="item.target.label">{{ item.target.ref }}</code>
+            </slot>
           </div>
           <p class="sk-annotations__comment">{{ item.comment }}</p>
           <p v-if="item.resolution" class="sk-annotations__resolution">
@@ -129,7 +158,7 @@ const targetKind = (item: InboxItem) => item.target.kind === 'route' ? t('item.r
             <small v-if="item.resolvedBy" class="sk-annotations__muted">{{ t('item.resolvedBy', { name: item.resolvedBy }) }}</small>
           </p>
 
-          <div v-if="item.status === 'open'" class="sk-annotations__actions">
+          <div v-if="!readonly && item.status === 'open'" class="sk-annotations__actions">
             <button type="button" class="sk-annotations__button sk-annotations__button--primary" @click="emit('implement', item)">
               {{ t('implement') }}
             </button>
@@ -143,7 +172,7 @@ const targetKind = (item: InboxItem) => item.target.kind === 'route' ? t('item.r
             </button>
           </div>
 
-          <form v-if="rejecting === item.inboxId" class="sk-annotations__reject" @submit.prevent="confirmReject(item)" @keydown.esc="cancelReject">
+          <form v-if="!readonly && rejecting === item.inboxId" class="sk-annotations__reject" @submit.prevent="confirmReject(item)" @keydown.esc="cancelReject">
             <label :for="`${uid}-${item.inboxId}-reason`">{{ t('reject.reason') }}</label>
             <textarea
               :id="`${uid}-${item.inboxId}-reason`"
@@ -194,6 +223,18 @@ const targetKind = (item: InboxItem) => item.target.kind === 'route' ? t('item.r
 .sk-annotations__comment, .sk-annotations__resolution { margin: 0; white-space: pre-wrap; }
 .sk-annotations__muted { color: var(--sk-muted, #656d76); margin: 0; }
 .sk-annotations__target { font-size: 0.8125rem; overflow-wrap: anywhere; }
+.sk-annotations__target--open {
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--sk-primary, #2563eb);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sk-annotations__target--open:focus-visible { outline: 2px solid var(--sk-primary, #2563eb); outline-offset: 2px; }
 .sk-annotations__error { margin: 0; color: var(--sk-danger, #cf222e); }
 .sk-annotations__badge {
   font-size: 0.75rem;

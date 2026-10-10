@@ -97,4 +97,56 @@ describe('<AnnotationList>', () => {
     const wrapper = mount(AnnotationList, { props: { annotations: annotations([]) } })
     expect(wrapper.text()).toContain('No annotations.')
   })
+
+  it('keeps the target plain text and the actions when neither open nor readonly is used', () => {
+    const wrapper = mount(AnnotationList, { props: { annotations: annotations([item('a', '1')]) } })
+    expect(wrapper.find('.sk-annotations__row button').exists()).toBe(false)
+    expect(wrapper.find('.sk-annotations__row code.sk-annotations__target').text()).toBe('app/components/Foo.vue:4:2')
+    expect(wrapper.findAll('.sk-annotations__actions button')).toHaveLength(2)
+  })
+
+  it('emits open with the item on click and on Enter when the host listens', async () => {
+    const entry = item('a', '1')
+    const onOpen = vi.fn()
+    const wrapper = mount(AnnotationList, { props: { annotations: annotations([entry]), onOpen } })
+
+    const target = wrapper.find('.sk-annotations__row button')
+    expect(target.attributes('type')).toBe('button')
+    expect(target.text()).toBe('app/components/Foo.vue:4:2')
+
+    await target.trigger('click')
+    await target.trigger('keydown.enter')
+    expect(onOpen).toHaveBeenCalledTimes(2)
+    expect(onOpen).toHaveBeenNthCalledWith(1, entry)
+    expect(onOpen).toHaveBeenNthCalledWith(2, entry)
+  })
+
+  it('renders the target slot with the item and the default text', () => {
+    const entry = item('a', '1')
+    const wrapper = mount(AnnotationList, {
+      props: { annotations: annotations([entry]) },
+      slots: { target: `<template #target="{ item, text }"><b class="custom">{{ item.id }}|{{ text }}</b></template>` },
+    })
+    expect(wrapper.find('.custom').text()).toBe('1|app/components/Foo.vue:4:2')
+    expect(wrapper.find('code').exists()).toBe(false)
+
+    const openable = mount(AnnotationList, {
+      props: { annotations: annotations([entry]), onOpen: vi.fn() },
+      slots: { target: `<template #target="{ text }"><b class="custom">{{ text }}</b></template>` },
+    })
+    expect(openable.find('button .custom').text()).toBe('app/components/Foo.vue:4:2')
+  })
+
+  it('renders no Implement, Reject or bulk action when readonly, and still shows the notes', () => {
+    const wrapper = mount(AnnotationList, {
+      props: { annotations: annotations([item('a', '1'), item('a', '2')]), readonly: true },
+    })
+    expect(wrapper.find('.sk-annotations__actions').exists()).toBe(false)
+    expect(wrapper.find('.sk-annotations__button--primary').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Implement')
+    expect(wrapper.text()).not.toContain('Reject')
+    expect(wrapper.findAll('.sk-annotations__item')).toHaveLength(2)
+    // Only the header's refresh stays.
+    expect(wrapper.findAll('button').map(b => b.text())).toEqual(['Refresh'])
+  })
 })

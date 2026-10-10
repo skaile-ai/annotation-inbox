@@ -58,4 +58,7 @@ For a human-facing list in a Vue host, `useAnnotations({ list, resolve, pollMs?,
 messages?, fetch? })` returns `items`, `status`, `loading`, `error`, `refresh()` and
 `resolve(ids, status, resolution?)`; `<AnnotationList :annotations="…" @implement="…" />`
 renders it. Endpoints are explicit strings, so a host may proxy the inbox under its own
-route.
+route. `<AnnotationList>` also takes `readonly` (hides Implement/Reject; the list still
+reads and refreshes), emits `open(item)` on click/Enter of a target when the host listens
+for it (otherwise the target stays plain text), and has a `target` slot receiving
+`{ item, text }` (`text` = `file:line:col` or the route).
