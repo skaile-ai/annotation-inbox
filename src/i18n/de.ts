@@ -1,0 +1,28 @@
+import type { Messages } from './en'
+
+export const de: Messages = {
+  title: 'Anmerkungen',
+  filterLabel: 'Anzeigen',
+  'status.open': 'Offen',
+  'status.closed': 'Erledigt',
+  'status.all': 'Alle',
+  'item.implemented': 'Umgesetzt',
+  'item.rejected': 'Abgelehnt',
+  'item.open': 'Offen',
+  'item.resolvedBy': 'von {name}',
+  'item.route': 'Seite',
+  'item.element': 'Element',
+  'session': 'Sitzung {id}',
+  implement: 'Umsetzen',
+  reject: 'Ablehnen',
+  'reject.reason': 'Warum wird diese Anmerkung abgelehnt?',
+  'reject.confirm': 'Anmerkung ablehnen',
+  'reject.cancel': 'Abbrechen',
+  'reject.required': 'Eine Ablehnung braucht eine Begründung.',
+  empty: 'Keine Anmerkungen.',
+  loading: 'Lädt…',
+  error: 'Anmerkungen konnten nicht geladen werden: {message}',
+  refresh: 'Aktualisieren',
+  'error.rejectedNeedsResolution': 'Eine abgelehnte Anmerkung braucht eine Begründung.',
+  'error.noIds': 'Es wurden keine Anmerkungs-IDs übergeben.',
+}

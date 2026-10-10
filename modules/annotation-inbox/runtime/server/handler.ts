@@ -22,6 +22,15 @@ interface AuthorizeDecision {
   principal?: HumanPrincipal
 }
 
+// Types the hook name for this file's own `callHook`. A host gets the same
+// declaration from the module's `addTypeTemplate` (`src/nuxt.ts`); the shapes
+// are identical, so the two merge.
+declare module 'nitropack/types' {
+  interface NitroRuntimeHooks {
+    'annotation-inbox:authorize': (decision: AuthorizeDecision) => void | Promise<void>
+  }
+}
+
 async function authenticate(event: H3Event): Promise<Principal | null> {
   const config = useRuntimeConfig(event).annotationInbox as { token?: string, authorize?: 'dev' | 'hook' } | undefined
   const token = config?.token

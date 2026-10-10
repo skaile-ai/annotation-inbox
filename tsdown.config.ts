@@ -1,8 +1,9 @@
 import { defineConfig } from 'tsdown'
+import vue from 'unplugin-vue/rolldown'
 import type { UserConfig } from 'tsdown'
 
 /**
- * Seven public entries and one runtime file are built, for one reason that is Node rather than taste.
+ * Eight public entries and one runtime file are built, for one reason that is Node rather than taste.
  *
  * A consuming project names this package's Vite plugin from its own
  * `vite.config.ts` (and from `.storybook/main.ts`, which is loaded the same
@@ -19,7 +20,8 @@ import type { UserConfig } from 'tsdown'
  *  - `inbox`   (`./inbox`)  `openFileInbox(root)` for server code and tools,
  *  - `mcp`     (`./mcp`)    the `annotation-inbox-mcp` stdio bin,
  *  - `server`  (`./server`) the route table for non-Nitro servers,
- *  - `testing` (`./testing`) the storage contract suite, run by vitest.
+ *  - `testing` (`./testing`) the storage contract suite, run by vitest,
+ *  - `vue`     (`./vue`)    the composable and the reference list, built apart below.
  *
  * The runtime file is the Nitro handler (`dist/runtime/server/handler.mjs`).
  * Nitro does not transpile TypeScript it finds under `node_modules` — it fails
@@ -79,8 +81,31 @@ const publicEntries: UserConfig = {
   ],
 }
 
+/**
+ * `./vue` is the one entry that runs in a browser, so it is built apart from
+ * the Node entries: `platform: 'neutral'`, the SFC compiled by `unplugin-vue`
+ * (its `<style>` block is emitted as `dist/vue.css`, imported by the entry's
+ * own output, and the host's bundler picks it up), and `vue` — an optional
+ * peer — left to the host so the list shares the app's reactivity. `dts.vue`
+ * runs `vue-tsc` for the `.vue` declarations. The only import across the
+ * package boundary is `contract.ts`, types only, so nothing of the toolbar's
+ * licence-gated dependency can reach this entry.
+ */
+const vueEntry: UserConfig = {
+  entry: { vue: 'src/vue/index.ts' },
+  outDir: 'dist',
+  format: ['es'],
+  platform: 'neutral',
+  plugins: [vue({ isProduction: true })],
+  dts: { vue: true },
+  clean: false,
+  outExtensions: () => ({ js: '.mjs', dts: '.d.ts' }),
+  external: ['vue'],
+}
+
 export default defineConfig([
   publicEntries,
+  vueEntry,
   {
     entry: { 'runtime/server/handler': 'modules/annotation-inbox/runtime/server/handler.ts' },
     outDir: 'dist',

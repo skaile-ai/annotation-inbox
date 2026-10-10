@@ -1,0 +1,24 @@
+/*
+ * The `--sk-*` design tokens shared by every SKAILE package (the editor, the
+ * annotation inbox, the agent inbox). Same names, same defaults, declared
+ * under `:where(:root)` so the selector has zero specificity: loading this
+ * sheet from several packages is harmless, and any host rule — `:root`, a
+ * class, a dark-mode wrapper — wins without a fight.
+ *
+ * A host maps once, e.g. `:root { --sk-primary: var(--p-primary-500); }`.
+ * Dark mode is the host flipping these values; no component here reads
+ * `prefers-color-scheme`.
+ */
+:where(:root) {
+  --sk-bg: #ffffff;
+  --sk-fg: #1f2328;
+  --sk-muted: #656d76;
+  --sk-border: #d0d7de;
+  --sk-primary: #2563eb;
+  --sk-primary-fg: #ffffff;
+  --sk-success: #1a7f37;
+  --sk-warning: #9a6700;
+  --sk-danger: #cf222e;
+  --sk-radius: 6px;
+  --sk-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

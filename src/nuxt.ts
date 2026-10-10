@@ -1,5 +1,5 @@
 import { addPlugin, addServerHandler, addTypeTemplate, addVitePlugin, createResolver, defineNuxtModule } from '@nuxt/kit'
-import type { NuxtModule } from '@nuxt/kit'
+import type { NuxtModule } from '@nuxt/schema'
 import { INBOX_DIR, INBOX_ROUTE, INBOX_STORAGE_MOUNT } from '../modules/annotation-inbox/contract'
 import { annotationInbox } from '../modules/annotation-inbox/vite'
 

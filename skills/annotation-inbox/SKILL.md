@@ -125,7 +125,7 @@ carries none of it. The README's *A plain Vite app* has the code; copy it from t
 
 - `curl -s localhost:<port>/__annotations` answers with a listing, and
   `curl -s localhost:<port>/__annotations/access` with `{"allowed":true}`. HTML instead of
-  JSON means the route is not registered — check the `extends` line. Storybook and a plain
+  JSON means the route is not registered — check that the module is listed in `modules`. Storybook and a plain
   Vite app print `annotation inbox: /__annotations → .data/annotations/` on start, because
   there the endpoint is the Vite plugin's; under Nuxt it is a Nitro route and prints nothing.
 - A note survives the round trip: annotate something, see it `open` in the listing, resolve

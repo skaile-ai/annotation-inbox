@@ -1,8 +1,10 @@
-# annotation-inbox
+# @skaile-ai/annotation-inbox
 
-A Nuxt 4 layer that turns "this button sits too low" into a file in your working copy, with
+A Nuxt 4 module that turns "this button sits too low" into a file in your working copy, with
 the line of the SFC that draws the button. Storybook and plain Vite apps without Nuxt or
-Vue take the same toolbar and inbox — see *Storybook* and *A plain Vite app*.
+Vue take the same toolbar and inbox — see *Storybook* and *A plain Vite app* — and any Vue
+host can list and answer the notes with `useAnnotations` / `<AnnotationList>` — see *Listing
+and answering notes in a Vue app*.
 
 ## What it does
 
@@ -49,29 +51,45 @@ instead.
 ## Install
 
 ```bash
-npm i -D nuxt-layer-annotation-inbox            # once it is on a registry
-npm i -D github:mortegro/nuxt-annotation-inbox#v0.1.1   # straight from the tag
+npm i -D @skaile-ai/annotation-inbox
 ```
 
 ```ts
 // nuxt.config.ts
-extends: ['nuxt-layer-annotation-inbox']
+export default defineNuxtConfig({
+  modules: ['@skaile-ai/annotation-inbox/nuxt'],
+})
 ```
 
 Add `.data/` to `.gitignore` if it is not there already. That is the whole Nuxt side: the
-layer's module registers the toolbar plugin, the Nitro routes and a storage mount by
-itself. It steps aside only under `@nuxt/test-utils` (`nuxt.options.test`), so a test run
-neither serves the routes nor mounts a store.
+module registers the toolbar plugin, the Nitro routes and a storage mount by itself. It
+steps aside only under `@nuxt/test-utils` (`nuxt.options.test`), so a test run neither
+serves the routes nor mounts a store. There is no `extends` line: this package is a module,
+not a layer.
 
-Two things about installing it **from GitHub**, both measured rather than guessed:
+Module options, all optional, under `annotationInbox` or as the module's tuple form:
 
-- **npm 11 or newer.** npm 10.9.8 cannot prepare a git dependency that builds itself:
-  `npm install` fails with `git dep preparation failed … Cannot read properties of null
-  (reading 'edgesOut')`, reproducible in an empty directory with this dependency alone.
-  `npm i -g npm@11` fixes it; declare the floor in your `engines.npm`.
-- **No `--ignore-scripts`.** The package's `prepare` script is what builds `dist/vite.mjs`,
-  the `./vite` export Storybook and plain Vite apps load. Skipping scripts installs a
-  package whose `/vite` import resolves to nothing.
+```ts
+modules: [['@skaile-ai/annotation-inbox/nuxt', {
+  token: '',              // shared agent secret; NUXT_ANNOTATION_INBOX_TOKEN overrides it at runtime
+  base: '/__annotations', // where the routes are mounted
+  dir: '.data/annotations', // the default filesystem store
+  authorize: 'dev',       // 'hook': ask annotation-inbox:authorize even under `nuxt dev`
+}]]
+```
+
+The package is published to npmjs and to GitHub Packages with the same version. From npmjs
+no token is needed; inside the SKAILE repos `@skaile-ai:registry=https://npm.pkg.github.com`
+in `.npmrc` resolves it from GitHub Packages instead.
+
+Entries, each with declarations: `.` (types, `createInbox`, `renderMarkdown`,
+`resolveTarget`), `./nuxt`, `./vite`, `./mount` (raw source — the consumer's Vite compiles
+it), `./inbox` (`openFileInbox`, Node), `./mcp` (stdio bin), `./server` (route handler for
+non-Nitro servers), `./testing` (storage contract suite), `./vue` (composable and list) with
+`./vue.css` and `./styles/tokens.css`. Host frameworks are optional peers (`nuxt` and
+`@nuxt/kit` for `./nuxt`, `vite` for `./vite`, `vue` for `./vue`, `vitest` for `./testing`):
+install what the entry you import needs; the core, `./inbox`, `./server` and `./mcp` need
+none.
 
 Requirements: Nuxt 4, and DevTools left enabled with their default `componentInspector` —
 that is what registers `vite-plugin-vue-tracer`, and the tracer is what supplies the
@@ -79,30 +97,6 @@ that is what registers `vite-plugin-vue-tracer`, and the tracer is what supplies
 its file; they just stop naming the line, and fall back to naming the route the note was
 made on. Adding `VueTracer()` to the module's `addVitePlugin` call brings it back (the
 tracer skips already-instrumented files, so a double registration is harmless).
-
-**Vendoring it** is the third way, and the one to take when the consuming project will
-also *edit* the package: put this repository into the project as a `git subtree` and list
-that directory as an npm workspace.
-
-```bash
-git remote add annotation-inbox git@github.com:mortegro/nuxt-annotation-inbox.git
-git subtree add -P vendor/nuxt-annotation-inbox annotation-inbox main
-# package.json: "workspaces": ["vendor/nuxt-annotation-inbox"]
-#               devDependencies: "nuxt-layer-annotation-inbox": "*"
-npm install    # links node_modules/nuxt-layer-annotation-inbox and runs `prepare`
-git subtree push -P vendor/nuxt-annotation-inbox annotation-inbox main   # publish back
-```
-
-`vendor/` and not `layers/`: Nuxt extends every directory under `~~/layers/` by itself, so
-a layer that is *also* named in `extends` would be registered twice. The package name is
-unchanged by vendoring, so `extends`, `/vite` and `/mount` stay as they are. Nothing is
-fetched from GitHub at install time any more — a Docker build needs neither `git` nor npm
-11, but it does need the vendored directory copied in before `npm ci`.
-
-**Copying the directory** into `~~/layers/` is the last resort, for a project that can take
-neither a dependency nor a subtree. Nuxt picks it up with no `extends` line; run your
-package manager afterwards so `agentation-vue`, `vite-plugin-vue-tracer` and `unstorage`
-are installed. A copy gets no updates.
 
 ### Check the install
 
@@ -114,7 +108,7 @@ curl -s localhost:3000/__annotations/access   # {"allowed":true}
 
 Then annotate something in the browser, see it in `?format=markdown`, resolve it, and watch
 the marker leave the tab within about ten seconds. If `/__annotations` answers with your
-app's HTML instead of JSON, the route is not registered — check the `extends` line.
+app's HTML instead of JSON, the route is not registered — check that the module is listed in `modules`.
 
 ## Storybook
 
@@ -123,7 +117,7 @@ hand — two lines in `.storybook/main.ts`:
 
 ```ts
 import { VueTracer } from 'vite-plugin-vue-tracer'
-import { annotationInbox } from 'nuxt-layer-annotation-inbox/vite'
+import { annotationInbox } from '@skaile-ai/annotation-inbox/vite'
 
 // in viteFinal's mergeConfig:
 plugins: [vue(), ...(process.env.VITEST ? [] : [VueTracer(), annotationInbox({ endpoint: true })])],
@@ -132,7 +126,7 @@ plugins: [vue(), ...(process.env.VITEST ? [] : [VueTracer(), annotationInbox({ e
 and one in `.storybook/preview.ts`:
 
 ```ts
-import { mountAnnotationToolbar } from 'nuxt-layer-annotation-inbox/mount'
+import { mountAnnotationToolbar } from '@skaile-ai/annotation-inbox/mount'
 
 setup(() => mountAnnotationToolbar())
 ```
@@ -168,10 +162,10 @@ lit-html + Web Awesome, Vite 8, an Express API behind Vite's proxy), installed f
 // vite.config.mjs
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { annotationInbox } from 'nuxt-layer-annotation-inbox/vite'
+import { annotationInbox } from '@skaile-ai/annotation-inbox/vite'
 
 export default defineConfig({
-  optimizeDeps: { exclude: ['nuxt-layer-annotation-inbox'] },
+  optimizeDeps: { exclude: ['@skaile-ai/annotation-inbox'] },
   plugins: [
     annotationInbox({ endpoint: true }),
     { ...vue(), apply: 'serve' },
@@ -183,7 +177,7 @@ export default defineConfig({
 ```js
 // the app's entry, after it has mounted itself
 if (import.meta.env.DEV) {
-  import('nuxt-layer-annotation-inbox/mount').then(({ mountAnnotationToolbar }) => mountAnnotationToolbar())
+  import('@skaile-ai/annotation-inbox/mount').then(({ mountAnnotationToolbar }) => mountAnnotationToolbar())
 }
 ```
 
@@ -199,7 +193,7 @@ Each line answers a failure seen on the way:
   library; a mount from `node_modules` must be excluded too. Pre-bundled, it bakes its own
   copy of Vue into the bundle while the toolbar's `.vue` files import the other one, and the
   toolbar throws `Cannot read properties of null (reading 'ce')` on first render. Vite
-  leaves linked packages un-bundled, so a vendored workspace should not meet this.
+  leaves linked packages un-bundled, so a linked workspace should not meet this.
 - **A dynamic import behind `import.meta.env.DEV`.** Vite replaces the flag with `false` in
   a build and drops the branch, so the production bundle names neither the toolbar nor the
   route: `grep -rlE 'agentation|__annotations' dist/` finds nothing. The access gate is not
@@ -240,7 +234,7 @@ export default defineNitroPlugin((nitroApp) => {
 })
 ```
 
-The hook's type arrives with the layer (`addTypeTemplate` writes it into
+The hook's type arrives with the module (`addTypeTemplate` writes it into
 `.nuxt/types/`), so `decision.event` and `decision.allowed` are typed without you
 declaring anything.
 
@@ -320,7 +314,7 @@ Two tools, named like the skill's vocabulary:
   `rejected` without a `resolution` is refused, as the skill requires.
 
 **In a `@skaile/workspaces` project** the server ships as an asset, `mcp/annotation-inbox/MCP.md`
-(kind `mcp-server`). Add `nuxt-layer-annotation-inbox` to the project's dependencies, then
+(kind `mcp-server`). Add `@skaile-ai/annotation-inbox` to the project's dependencies, then
 either list this repository under `sources:` in `skaile.yaml` and depend on the asset:
 
 ```yaml
@@ -337,7 +331,7 @@ mcp_servers:
   - id: annotation-inbox
     transport: stdio
     command: node
-    args: ["${workspace}/node_modules/nuxt-layer-annotation-inbox/dist/mcp.mjs"]
+    args: ["${workspace}/node_modules/@skaile-ai/annotation-inbox/dist/mcp.mjs"]
     env:
       ANNOTATION_INBOX_ROOT: "${workspace}"
 ```
@@ -353,7 +347,7 @@ server, which is why the root is passed as an environment variable.
   "mcpServers": {
     "annotation-inbox": {
       "command": "node",
-      "args": ["node_modules/nuxt-layer-annotation-inbox/dist/mcp.mjs"]
+      "args": ["node_modules/@skaile-ai/annotation-inbox/dist/mcp.mjs"]
     }
   }
 }
@@ -362,7 +356,7 @@ server, which is why the root is passed as an environment variable.
 **From your own Node tool**, skip the protocol and open the inbox directly:
 
 ```ts
-import { openFileInbox } from 'nuxt-layer-annotation-inbox/inbox'
+import { openFileInbox } from '@skaile-ai/annotation-inbox/inbox'
 
 const inbox = openFileInbox('/path/to/project')
 const open = await inbox.list({ status: 'open' })
@@ -379,6 +373,86 @@ store cannot see them; for those, a small MCP server of your own that `GET`s the
 `resolution`) over HTTP still works. Resolve the origin per call, send the bearer token
 when one is configured, and name the origin in connection errors — `fetch failed` does not
 say which address was tried.
+
+## Listing and answering notes in a Vue app
+
+`./vue` is for the human side of the inbox: a host that wants its own list of what agents
+were asked to change, instead of (or next to) the toolbar. It has no UI-kit dependency —
+`vue` is the only peer — and imports nothing from the toolbar library.
+
+```vue
+<script setup lang="ts">
+import { AnnotationList, useAnnotations } from '@skaile-ai/annotation-inbox/vue'
+
+const annotations = useAnnotations({
+  list: '/__annotations',              // string, or () => string for a reactive endpoint
+  resolve: '/__annotations/resolve',
+  pollMs: 10_000,                      // default; 0 turns polling off
+  locale: 'en',                        // 'en' | 'de'
+  messages: { implement: 'Do it' },    // override single keys
+})
+
+function implement(item) { /* hand the note to an agent; resolve() when it is done */ }
+</script>
+
+<template>
+  <AnnotationList :annotations="annotations" @implement="implement" />
+</template>
+```
+
+`useAnnotations` returns `items`, `status` (`'open' | 'closed' | 'all'`, changing it
+refreshes), `loading`, `error`, `openCount`, `refresh()`, `resolve(ids, status, resolution?)`
+and `t` (the translator, shared with the list). `resolve('rejected')` without a
+resolution throws before any request, as the server and the MCP tool refuse it. Inside a
+component polling starts on mount and stops on unmount; a failed refresh keeps the last
+good items and sets `error`. The endpoints are plain strings, so a host that proxies the
+inbox under its own route (a workspace-scoped one, say) needs none of the module's routes.
+`fetch` takes a `$fetch`-shaped function (resolves to the parsed body, rejects on non-2xx);
+Nuxt's `$fetch` fits, and the default is a small wrapper over `fetch`.
+
+`<AnnotationList>` groups notes by browser session, shows each target as `file:line:col` or
+as the route, and offers **Implement** (emits `implement(item)`; the host decides what that
+means) and **Reject** (asks for a reason inline, then calls `resolve`). It is native
+elements only, every state carries a text label, and the controls are keyboard-complete.
+
+### Theming: the `--sk-*` tokens
+
+The list is styled only by these CSS variables, the same names the other `@skaile-ai`
+packages use:
+
+| token | role |
+|---|---|
+| `--sk-bg`, `--sk-fg`, `--sk-muted` | surface, text, secondary text |
+| `--sk-border`, `--sk-radius` | outlines, corner radius |
+| `--sk-primary`, `--sk-primary-fg` | the Implement button |
+| `--sk-success`, `--sk-warning`, `--sk-danger` | implemented / open / rejected |
+| `--sk-font` | font family |
+
+Import the sheets once — the defaults are declared under `:where(:root)`, so repeating them
+(another package ships the same file) is harmless and any host rule wins:
+
+```ts
+// nuxt.config.ts
+css: [
+  '@skaile-ai/annotation-inbox/styles/tokens.css',
+  '@skaile-ai/annotation-inbox/vue.css',   // the list's own rules; they carry fallbacks too
+],
+```
+
+then map them to your design system once, e.g. PrimeVue:
+
+```css
+:root {
+  --sk-bg: var(--p-content-background);
+  --sk-fg: var(--p-text-color);
+  --sk-muted: var(--p-text-muted-color);
+  --sk-border: var(--p-content-border-color);
+  --sk-primary: var(--p-primary-500);
+  --sk-primary-fg: var(--p-primary-contrast-color);
+}
+```
+
+Dark mode is the host flipping those values; nothing here reads `prefers-color-scheme`.
 
 ## Storage
 
@@ -398,7 +472,7 @@ import { createDatabase } from 'db0'
 import nodeSqlite from 'db0/connectors/node-sqlite'
 import db0Driver from 'unstorage/drivers/db0'
 
-const mount = 'annotation-inbox'                        // the layer's INBOX_STORAGE_MOUNT
+const mount = 'annotation-inbox'                        // the module's INBOX_STORAGE_MOUNT
 const file = '.data/annotations/inbox.sqlite'           // inside INBOX_DIR: one volume covers both
 
 export default defineNitroPlugin(async () => {
@@ -412,7 +486,7 @@ export default defineNitroPlugin(async () => {
 
 Three things that bite in that order: `node:sqlite` reports a missing parent directory as
 "unable to open database file" rather than creating one; `useStorage().mount()` refuses a
-name that is already mounted, so the layer's build-time default has to be unmounted first;
+name that is already mounted, so the module's build-time default has to be unmounted first;
 and `unmount(name, false)` — a disposing unmount deletes the directory's contents on some
 drivers. `db0` is your dependency, not this package's; add it yourself. Both halves log
 once per process that they are experimental (unstorage's "Database driver is experimental",
@@ -435,7 +509,7 @@ while `getKeys('items')` works. That is why a session's membership lives in its
 ## The shipped skill
 
 `skills/annotation-inbox/SKILL.md` travels with the package: the agent that installs the
-layer also gets its operating manual — how to read the notes and map each one back to a
+package also gets its operating manual — how to read the notes and map each one back to a
 line, and how to wire the toolbar into a project that does not have it yet. It is
 model-invoked, so it triggers on "I left you notes" and on "this button sits too low"
 without anybody naming the skill.
@@ -444,7 +518,7 @@ Wiring it up in a consuming project is one of:
 
 ```
 npx skills add mortegro/nuxt-annotation-inbox
-ln -s ../../node_modules/nuxt-layer-annotation-inbox/skills/annotation-inbox .claude/skills/annotation-inbox
+ln -s ../../node_modules/@skaile-ai/annotation-inbox/skills/annotation-inbox .claude/skills/annotation-inbox
 ```
 
 A symlink keeps the manual in step with the package on every update; a copy is fine if
@@ -454,23 +528,28 @@ your skill loader does not follow links.
 
 ```
 package.json                                    name, exports, the tsdown build
-nuxt.config.ts                                  the layer, deliberately empty
-modules/annotation-inbox/index.ts               registers the halves, routes, storage mount
+src/nuxt.ts                                     the Nuxt module (`./nuxt`)
+src/vue/useAnnotations.ts                       the composable (`./vue`)
+src/vue/AnnotationList.vue                      the reference list
+src/i18n/{en,de}.ts                             message catalogs for `./vue`
+styles/tokens.css                               the `--sk-*` defaults (`./styles/tokens.css`)
 modules/annotation-inbox/contract.ts            route, mount name, item and session types
 modules/annotation-inbox/inbox.ts               the framework-neutral core: storage + routes
+modules/annotation-inbox/principal.ts           Principal types and the dev/token defaults
 modules/annotation-inbox/vite.ts                the dev-server adapter; Storybook's entry
 modules/annotation-inbox/runtime/server/handler.ts  the Nitro adapter, and who is allowed in
 modules/annotation-inbox/runtime/mount.ts       the toolbar mount, both harnesses
 modules/annotation-inbox/runtime/inbox.ts       storage adapter, component detector, poller
 modules/annotation-inbox/runtime/plugin.client.ts  Nuxt's entry into the mount
-dist/vite.mjs                                   built from vite.ts, the `./vite` export
+dist/                                           the built entries, with declarations
 skills/annotation-inbox/SKILL.md                the agent's operating manual
-test/                                           the contract, the adapter, the licence locks
+mcp/annotation-inbox/MCP.md                     the stdio server as a workspaces asset
+docs/llms.md                                    operations, HTTP and MCP spellings, closing rule
+test/                                           the contract, the adapter, the composable, the licence locks
 LICENSE                                         MIT, for this wiring
 ```
 
-Nothing here imports anything from outside the layer except its own dependencies, which is
-what makes copying the directory enough.
+Nothing here imports anything from outside the package except its own dependencies.
 
 ## How the toolbar reaches a browser
 
@@ -490,7 +569,7 @@ trusting it:
    `<link rel="prefetch">`, and a prefetched chunk is a downloaded chunk — measured on a
    production build, a refused reader had fetched both library chunks before `/access`
    answered. The module's `build:manifest` hook clears `prefetch`/`preload` for them.
-4. The package owns the dependency: a project installing this layer lists it once, as this
+4. The package owns the dependency: a project installing this package lists it once, as this
    package's dependency, and not in its own manifest.
 
 If you deploy a built Storybook rather than throwing it away, check it too:
@@ -500,7 +579,7 @@ from a static build's preview.
 
 ## Licence
 
-This layer is the wiring; the toolbar it mounts is
+This package is the wiring; the toolbar it mounts is
 [`agentation-vue`](https://www.npmjs.com/package/agentation-vue), licensed under [PolyForm
 Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — not an open source
 licence: any use except building a competing product. That is why *how* it reaches a
