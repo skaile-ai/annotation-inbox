@@ -139,9 +139,16 @@ carries none of it. The README's *A plain Vite app* has the code; copy it from t
 
 ## Beyond that
 
+If your tool list has `annotations_list` and `annotations_resolve`, use them instead of the
+`curl` lines above: they come from the package's own MCP server (`annotation-inbox-mcp`,
+shipped as `mcp/annotation-inbox/MCP.md`), read `.data/annotations` directly so they need no
+port, and take the same `status`, `session`, `ids` and `resolution`. `rejected` without a
+`resolution` is refused.
+
 The package README covers what only some projects need: *Deploying it* (the agent token,
 the `annotation-inbox:authorize` hook, containers), *Storage* (mounting SQLite under the
-inbox so every note is a row), *An MCP server over the inbox*, how a browser tab becomes a
+inbox so every note is a row), *An MCP server over the inbox* (wiring it into a skaile
+workspace or Claude Code), how a browser tab becomes a
 session, the POST contract the toolbar speaks, and the PolyForm Shield licence of the
 toolbar library with the locks that keep it from reaching a reader who may not annotate.
 Read it when a question is about the mechanism rather than about using it.

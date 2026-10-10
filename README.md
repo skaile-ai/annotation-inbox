@@ -20,8 +20,8 @@ mirrored to the server, which keeps every note as its own entry in an
 An agent reads them over HTTP — `GET /__annotations?format=markdown` — acts, and answers
 each note with `POST /__annotations/resolve`. No browser extension, no clipboard step, and
 nothing that only works in Chromium. The transport is plain HTTP, which is also why
-wrapping it in an MCP server is a page of code rather than a feature this package has to
-ship — see *An MCP server over the inbox*.
+wrapping it in an MCP server is a short step — and the package ships one, reading the files
+directly: see *An MCP server over the inbox*.
 
 One entry per note rather than one blob per tab is deliberate: a host that mounts a
 database under the store (see *Storage*) then holds one row per annotation, so "what is
@@ -304,22 +304,81 @@ Against a deployed server every one of these needs `-H "Authorization: Bearer $T
 
 ### An MCP server over the inbox
 
-Agents answer notes more reliably through a tool than through a remembered `curl` line. The
-inbox is plain HTTP, so a stdio MCP server over it is one file in the consuming project —
-and it belongs there rather than here, because the only project-specific fact is *which
-port is holding the notes*: your dev server, or Storybook, or a deployed origin.
+Agents answer notes more reliably through a tool than through a remembered `curl` line, so
+the package ships a stdio MCP server, `annotation-inbox-mcp` (`dist/mcp.mjs`). It does not
+go through HTTP: it opens `<root>/.data/annotations` itself — the directory the dev server
+writes — so it needs no port, works while the dev server is down, and cannot be answered by
+a neighbouring project's server. The root is, in order, `--root <dir>`, the environment
+variable `ANNOTATION_INBOX_ROOT`, then the working directory. It prints the directory it
+opened to stderr once; stdout is the MCP transport.
 
-Two tools are enough: one that `GET`s the listing (`status`, `session`, `format`, `origin`)
-and one that `POST`s `/resolve` (`ids`, `status`, `resolution`). Worth building in:
+Two tools, named like the skill's vocabulary:
 
-- Resolve the origin per call — an environment variable first, then probe your candidate
-  ports and take the first that answers `/__annotations` with JSON. A *neighbouring*
-  project's dev server on the port you expected answers with its own HTML, and the
-  content-type check is what tells them apart.
-- Send the bearer token when one is configured, so the same tool works against a
-  deployment.
-- Name the origin in connection errors. `fetch failed` does not say which address was
-  tried, which is the only question when nothing answers.
+- `annotations_list` — `status` (`open` by default, `implemented`, `rejected`, `closed`,
+  `all`), `session` (one browser tab), `format` (`markdown` by default, or `json`).
+- `annotations_resolve` — `ids`, `status` (`implemented` or `rejected`) and `resolution`.
+  `rejected` without a `resolution` is refused, as the skill requires.
+
+**In a `@skaile/workspaces` project** the server ships as an asset, `mcp/annotation-inbox/MCP.md`
+(kind `mcp-server`). Add `nuxt-layer-annotation-inbox` to the project's dependencies, then
+either list this repository under `sources:` in `skaile.yaml` and depend on the asset:
+
+```yaml
+sources:
+  - url: https://github.com/mortegro/nuxt-annotation-inbox
+dependencies:
+  - mcp-server:annotation-inbox
+```
+
+or declare the same command explicitly, which needs no source clone:
+
+```yaml
+mcp_servers:
+  - id: annotation-inbox
+    transport: stdio
+    command: node
+    args: ["${workspace}/node_modules/nuxt-layer-annotation-inbox/dist/mcp.mjs"]
+    env:
+      ANNOTATION_INBOX_ROOT: "${workspace}"
+```
+
+`${workspace}` is the project directory; the runner sets no working directory for the
+server, which is why the root is passed as an environment variable.
+
+**In Claude Code** (or any host that starts MCP servers in the project directory) a
+`.mcp.json` is enough, since the root falls back to the working directory:
+
+```json
+{
+  "mcpServers": {
+    "annotation-inbox": {
+      "command": "node",
+      "args": ["node_modules/nuxt-layer-annotation-inbox/dist/mcp.mjs"]
+    }
+  }
+}
+```
+
+**From your own Node tool**, skip the protocol and open the inbox directly:
+
+```ts
+import { openFileInbox } from 'nuxt-layer-annotation-inbox/inbox'
+
+const inbox = openFileInbox('/path/to/project')
+const open = await inbox.list({ status: 'open' })
+await inbox.resolve([open[0].inboxId], 'implemented', 'Abstand auf 12px', 'agent')
+```
+
+`createInbox`, `renderMarkdown`, `resolveTarget` and the contract types come from the same
+entry. A missing `.data/annotations` is not an error: the listing is empty.
+
+The file store is what the dev server writes, and only that. A host that mounts SQLite under
+the inbox (see *Storage*) or serves notes from a deployed origin keeps them where the fs
+store cannot see them; for those, a small MCP server of your own that `GET`s the listing
+(`status`, `session`, `format`, `origin`) and `POST`s `/resolve` (`ids`, `status`,
+`resolution`) over HTTP still works. Resolve the origin per call, send the bearer token
+when one is configured, and name the origin in connection errors — `fetch failed` does not
+say which address was tried.
 
 ## Storage
 

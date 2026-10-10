@@ -1,6 +1,6 @@
 {
   "name": "nuxt-layer-annotation-inbox",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
   "description": "Dev-only annotation toolbar whose notes land in .data/annotations/ with SFC source locations, for coding agents",
   "license": "MIT",
@@ -18,20 +18,31 @@
     "devtools"
   ],
   "main": "./nuxt.config.ts",
-  "//exports": "Three entries, and each one is a different answer to `who compiles this file`. `.` is the layer itself, handed to Nuxt, which reads `nuxt.config.ts` as TypeScript. `./vite` is built to `dist/`, because it is the only entry a plain `vite.config.ts` loads through Node, and Node refuses to type-strip TypeScript under `node_modules`. `./mount` is raw source on purpose: the consumer's Vite is its compiler, and pre-bundling it would risk the `import.meta.env.DEV` dead-branch elimination that is what keeps the toolbar out of production builds. `main` stays beside the map for tools that predate exports.",
+  "//exports": "Five entries, and each one is a different answer to `who compiles this file`. `.` is the layer itself, handed to Nuxt, which reads `nuxt.config.ts` as TypeScript. `./vite`, `./inbox` and `./mcp` are built to `dist/`, for the same reason: Node loads them directly — `./vite` through a plain `vite.config.ts`, `./inbox` from server code and tools that open a project's inbox from its directory, `./mcp` as the `annotation-inbox-mcp` stdio process — and Node refuses to type-strip TypeScript under `node_modules`. `./mount` is raw source on purpose: the consumer's Vite is its compiler, and pre-bundling it would risk the `import.meta.env.DEV` dead-branch elimination that is what keeps the toolbar out of production builds. `main` stays beside the map for tools that predate exports.",
   "exports": {
     ".": "./nuxt.config.ts",
     "./vite": {
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.mjs"
     },
+    "./inbox": {
+      "types": "./dist/inbox.d.ts",
+      "import": "./dist/inbox.mjs"
+    },
+    "./mcp": {
+      "import": "./dist/mcp.mjs"
+    },
     "./mount": "./modules/annotation-inbox/runtime/mount.ts"
+  },
+  "bin": {
+    "annotation-inbox-mcp": "./dist/mcp.mjs"
   },
   "files": [
     "nuxt.config.ts",
     "modules",
     "dist",
     "skills",
+    "mcp",
     "README.md",
     "LICENSE"
   ],
@@ -41,18 +52,26 @@
     "prepare": "npm run build",
     "test": "vitest run"
   },
-  "//peerDependencies": "Everything the layer imports from its host and must not bring a second copy of: `@nuxt/kit` in `modules/annotation-inbox/index.ts`, `searchForWorkspaceRoot` from `vite` in `vite.ts`, and `vue` dynamically in `runtime/mount.ts`. None of them were declared before, which worked only because every host this layer had ever been dropped into happened to have all four.",
+  "//peerDependencies": "Everything the layer imports from its host and must not bring a second copy of: `@nuxt/kit` in `modules/annotation-inbox/index.ts`, `searchForWorkspaceRoot` from `vite` in `vite.ts`, and `vue` dynamically in `runtime/mount.ts`. All four are optional, because a consumer that only wants `./inbox` or `./mcp` — a non-Nuxt project, or a tool — needs none of them; Nuxt consumers already have them.",
   "peerDependencies": {
     "nuxt": "^4.0.0",
     "@nuxt/kit": "^4.0.0",
     "vite": "^7.0.0 || ^8.0.0",
     "vue": "^3.5.0"
   },
-  "//dependencies": "`unstorage` is the store seam: the server half reads and writes only through it, so a host can mount a filesystem directory, a database or anything else with a driver without this package knowing which.",
+  "peerDependenciesMeta": {
+    "nuxt": { "optional": true },
+    "@nuxt/kit": { "optional": true },
+    "vite": { "optional": true },
+    "vue": { "optional": true }
+  },
+  "//dependencies": "`unstorage` is the store seam: the server half reads and writes only through it, so a host can mount a filesystem directory, a database or anything else with a driver without this package knowing which. `@modelcontextprotocol/sdk` and `zod` are the stdio MCP server in `./mcp`.",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "agentation-vue": "^0.3.0",
     "unstorage": "^1.17.5",
-    "vite-plugin-vue-tracer": "^1.5.0"
+    "vite-plugin-vue-tracer": "^1.5.0",
+    "zod": "^4.4.0"
   },
   "devDependencies": {
     "tsdown": "^0.16.0",
