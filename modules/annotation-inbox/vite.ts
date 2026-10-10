@@ -7,9 +7,11 @@ import { searchForWorkspaceRoot } from 'vite'
 // the same thing Vite's native config loader asks of `vitest.config.ts`.
 import { INBOX_DIR, INBOX_ROUTE, INBOX_TOKEN_ENV, TOOLBAR_PACKAGE } from './contract.ts'
 import { bearerToken, createInbox, handleInboxRequest } from './inbox.ts'
+import { DEV_PRINCIPAL, tokenAgent } from './principal.ts'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
-import type { InboxAuthorizer, InboxStore } from './inbox.ts'
+import type { InboxStore } from './inbox.ts'
+import type { Principal } from './principal.ts'
 
 /**
  * The inbox's server half under a dev server: a Vite middleware that turns a
@@ -32,30 +34,26 @@ import type { InboxAuthorizer, InboxStore } from './inbox.ts'
  * The handler, separated from the plugin so a harness can supply its own store
  * and its own notion of who is allowed in.
  */
-export function createInboxHandler(options: { store: InboxStore, authorize: InboxAuthorizer }) {
+export function createInboxHandler(options: {
+  store: InboxStore
+  /** Who the caller is: a principal, or `null` for nobody. */
+  authorize: (req: IncomingMessage) => Promise<Principal | null> | Principal | null
+}) {
   const inbox = createInbox(options.store)
 
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // Connect has already stripped the mount prefix, leaving `/` for the
-    // collection itself.
-    const url = new URL(req.url ?? '/', 'http://annotation-inbox.invalid')
-    const path = url.pathname === '/' ? '' : url.pathname.replace(/\/$/, '')
-
-    const response = await handleInboxRequest(
-      inbox,
-      {
-        method: req.method ?? 'GET',
-        path,
-        query: url.searchParams,
-        authorization: req.headers.authorization,
-        body: async () => {
-          const chunks: Buffer[] = []
-          for await (const chunk of req) chunks.push(chunk as Buffer)
-          return Buffer.concat(chunks).toString('utf8')
-        },
+    // collection itself; the core wants the whole path back.
+    const response = await handleInboxRequest(inbox, {
+      method: req.method ?? 'GET',
+      url: `${INBOX_ROUTE}${req.url ?? '/'}`,
+      principal: await options.authorize(req),
+      body: async () => {
+        const chunks: Buffer[] = []
+        for await (const chunk of req) chunks.push(chunk as Buffer)
+        return Buffer.concat(chunks).toString('utf8')
       },
-      options.authorize,
-    )
+    })
 
     res.statusCode = response.status
     for (const [name, value] of Object.entries(response.headers)) res.setHeader(name, value)
@@ -101,9 +99,11 @@ export function annotationInbox(options: { endpoint?: boolean } = {}): Plugin {
       // A dev server is somebody's own machine: whoever reaches it is the
       // reviewer. The bearer token exists so a local agent can say it is one,
       // which only changes who a resolution is attributed to.
-      const authorize: InboxAuthorizer = async request => {
+      const authorize = (req: IncomingMessage): Principal => {
         const expected = process.env[INBOX_TOKEN_ENV]
-        return expected && bearerToken(request.authorization) === expected ? 'agent' : 'reviewer'
+        if (!expected || bearerToken(req.headers.authorization) !== expected) return DEV_PRINCIPAL
+        const label = req.headers['x-agent-label']
+        return tokenAgent(Array.isArray(label) ? label[0] : label)
       }
       const handler = createInboxHandler({ store, authorize })
       server.middlewares.use(INBOX_ROUTE, (req, res) => {

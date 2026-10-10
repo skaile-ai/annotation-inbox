@@ -1,17 +1,16 @@
-import {
-  INBOX_RESOLVE_ROUTE,
-} from './contract.ts'
+import { INBOX_ROUTE, inboxRoutes } from './contract.ts'
+import { principalLabel } from './principal.ts'
 import type { Storage } from 'unstorage'
 import type {
   InboxAnnotation,
   InboxItem,
   InboxListing,
   InboxPayload,
-  InboxRole,
   InboxSession,
   InboxStatus,
   InboxTarget,
 } from './contract.ts'
+import type { Principal } from './principal.ts'
 
 /**
  * The inbox itself: what an annotation becomes once it leaves the browser, and
@@ -125,11 +124,12 @@ const line = (label: string, value: string | undefined) =>
 export function renderMarkdown(
   items: InboxItem[],
   status: InboxStatus | 'closed' | 'all',
+  options: { base?: string } = {},
 ): string {
   const head = [
     `## Annotation inbox — ${items.length} ${status}`,
     '',
-    `Resolve: POST ${INBOX_RESOLVE_ROUTE} {"ids":["<inboxId>"],"status":"implemented"|"rejected","resolution":"<why>"}`,
+    `Resolve: POST ${inboxRoutes(options.base).resolve} {"ids":["<inboxId>"],"status":"implemented"|"rejected","resolution":"<why>"}`,
   ]
   const body = items.flatMap(item => [
     '',
@@ -149,8 +149,28 @@ export function renderMarkdown(
   return [...head, ...body, ''].join('\n')
 }
 
+/**
+ * What happened to an inbox, for hosts that fan it out (push, SSE, a badge).
+ * `ids` are inbox ids: after `published`, every note the session now holds
+ * (none when the tab cleared it); after `resolved`, the notes just closed.
+ * One `resolved` event per session, because a call may close notes of several.
+ */
+export interface InboxEvent {
+  type: 'published' | 'resolved'
+  sessionId: string
+  ids: string[]
+}
+
+export type InboxListener = (event: InboxEvent) => void
+
 /** What a caller may ask of an inbox, whatever store is underneath it. */
 export interface Inbox {
+  /**
+   * Called after `publish` / `resolve` has succeeded. A listener that throws —
+   * or returns a promise that rejects — is swallowed: observers must not be
+   * able to fail the operation they observe. Returns the unsubscribe.
+   */
+  subscribe(listener: InboxListener): () => void
   /** Replace one tab's session; resolutions already recorded survive. */
   publish(payload: InboxPayload): Promise<void>
   list(filter: {
@@ -161,11 +181,30 @@ export interface Inbox {
     ids: string[],
     status: 'implemented' | 'rejected',
     resolution: string | undefined,
-    by: InboxRole,
+    by: string,
   ): Promise<{ resolved: string[], unknown: string[] }>
 }
 
-export function createInbox(store: InboxStore): Inbox {
+export interface InboxOptions {
+  /** The clock behind `receivedAt` / `resolvedAt` / `updatedAt`; injectable for tests. */
+  now?: () => Date
+}
+
+export function createInbox(store: InboxStore, options: InboxOptions = {}): Inbox {
+  const now = options.now ?? (() => new Date())
+  const listeners = new Set<InboxListener>()
+
+  const emit = (event: InboxEvent): void => {
+    for (const listener of [...listeners]) {
+      try {
+        const result: unknown = listener(event)
+        if (result instanceof Promise) result.catch(() => {})
+      } catch {
+        // An observer's failure is the observer's own.
+      }
+    }
+  }
+
   const readSession = async (sessionId: string): Promise<InboxSession | undefined> => {
     const value = await store.getItem(sessionKey(sessionId))
     if (!isRecord(value) || !Array.isArray(value.itemIds)) return undefined
@@ -178,6 +217,13 @@ export function createInbox(store: InboxStore): Inbox {
   }
 
   return {
+    subscribe(listener: InboxListener): () => void {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+
     /**
      * A tab's whole current session. New notes arrive `open`; notes already
      * here keep everything the server decided about them — that is what makes
@@ -193,7 +239,7 @@ export function createInbox(store: InboxStore): Inbox {
      */
     async publish(payload: InboxPayload): Promise<void> {
       const previous = await readSession(payload.sessionId)
-      const now = new Date().toISOString()
+      const stamp = now().toISOString()
       const closed: string[] = []
       for (const inboxId of previous?.itemIds ?? []) {
         const item = await readItem(inboxId)
@@ -204,6 +250,7 @@ export function createInbox(store: InboxStore): Inbox {
         for (const inboxId of previous?.itemIds ?? []) await store.removeItem(itemKey(inboxId))
         await store.removeItem(sessionKey(payload.sessionId))
         await store.removeItem(markdownKey(payload.sessionId))
+        emit({ type: 'published', sessionId: payload.sessionId, ids: [] })
         return
       }
 
@@ -230,7 +277,7 @@ export function createInbox(store: InboxStore): Inbox {
           origin: payload.origin,
           target: resolveTarget(annotation),
           status: existing?.status ?? 'open',
-          receivedAt: existing?.receivedAt ?? now,
+          receivedAt: existing?.receivedAt ?? stamp,
           ...(existing?.resolvedAt ? { resolvedAt: existing.resolvedAt } : {}),
           ...(existing?.resolution ? { resolution: existing.resolution } : {}),
           ...(existing?.resolvedBy ? { resolvedBy: existing.resolvedBy } : {}),
@@ -245,10 +292,11 @@ export function createInbox(store: InboxStore): Inbox {
         sessionId: payload.sessionId,
         origin: payload.origin,
         url: payload.url,
-        updatedAt: now,
+        updatedAt: stamp,
         itemIds,
       } satisfies InboxSession)
       await store.setItem(markdownKey(payload.sessionId), payload.markdown)
+      emit({ type: 'published', sessionId: payload.sessionId, ids: [...itemIds] })
     },
 
     async list(filter: {
@@ -282,11 +330,12 @@ export function createInbox(store: InboxStore): Inbox {
       ids: string[],
       status: 'implemented' | 'rejected',
       resolution: string | undefined,
-      by: InboxRole,
+      by: string,
     ): Promise<{ resolved: string[], unknown: string[] }> {
       const resolved: string[] = []
       const missing: string[] = []
-      const resolvedAt = new Date().toISOString()
+      const bySession = new Map<string, string[]>()
+      const resolvedAt = now().toISOString()
       for (const id of ids) {
         const item = await readItem(id)
         if (!item) {
@@ -301,7 +350,9 @@ export function createInbox(store: InboxStore): Inbox {
           ...(resolution ? { resolution } : {}),
         } satisfies InboxItem)
         resolved.push(id)
+        bySession.set(item.sessionId, [...(bySession.get(item.sessionId) ?? []), id])
       }
+      for (const [sessionId, ids] of bySession) emit({ type: 'resolved', sessionId, ids })
       return { resolved, unknown: missing }
     },
   }
@@ -311,14 +362,21 @@ export function createInbox(store: InboxStore): Inbox {
 /* Transport-neutral request handling                                          */
 /* -------------------------------------------------------------------------- */
 
-/** A request reduced to what the route table actually branches on. */
+/**
+ * A request reduced to what the route table branches on. `principal` is the
+ * caller as the host already established them — the transport authenticates,
+ * this core only decides what that identity may do — and `null` means nobody.
+ */
 export interface InboxRequest {
   method: string
-  /** Relative to `INBOX_ROUTE`: `''`, `'/resolve'`, `'/access'`, or unknown. */
-  path: string
-  query: URLSearchParams
-  authorization?: string
-  body(): Promise<string>
+  /**
+   * The request URL, path and query; absolute or origin-relative. The path
+   * must sit under `options.base` (default `INBOX_ROUTE`).
+   */
+  url: string
+  /** The raw request body, or a reader for it — only read when a route needs it. */
+  body?: string | (() => string | Promise<string>)
+  principal: Principal | null
 }
 
 export interface InboxResponse {
@@ -327,12 +385,10 @@ export interface InboxResponse {
   body: string
 }
 
-/**
- * Who a request is. Each harness answers differently — a dev server says
- * "reviewer" to everyone, the deployed server asks its host — which is exactly
- * why it is a parameter and not a branch in here.
- */
-export type InboxAuthorizer = (request: InboxRequest) => Promise<InboxRole | undefined>
+export interface HandleInboxOptions {
+  /** Where the inbox is mounted; default `INBOX_ROUTE`. */
+  base?: string
+}
 
 export function bearerToken(authorization: string | undefined): string | undefined {
   const match = /^Bearer\s+(.+)$/i.exec(authorization?.trim() ?? '')
@@ -368,32 +424,39 @@ const LIST_STATUSES: Record<string, true> = {
 export async function handleInboxRequest(
   inbox: Inbox,
   request: InboxRequest,
-  authorize: InboxAuthorizer,
+  options: HandleInboxOptions = {},
 ): Promise<InboxResponse> {
   const method = request.method.toUpperCase()
+  const base = options.base ?? INBOX_ROUTE
+  const url = new URL(request.url, 'http://annotation-inbox.invalid')
+  if (!url.pathname.startsWith(base)) return text(404, 'annotation inbox: unknown route')
+  const path = url.pathname.slice(base.length).replace(/\/$/, '')
+  const query = url.searchParams
+  const readBody = async (): Promise<string> =>
+    typeof request.body === 'function' ? await request.body() : (request.body ?? '')
+  const { principal } = request
 
-  if (request.path === '/access') {
+  if (path === '/access') {
     if (method !== 'GET') return text(405, 'annotation inbox: GET')
-    return json(200, { allowed: (await authorize(request)) !== undefined })
+    return json(200, { allowed: principal !== null })
   }
 
-  const known = request.path === '' || request.path === '/resolve'
+  const known = path === '' || path === '/resolve'
   if (!known) return text(404, 'annotation inbox: unknown route')
 
-  if (request.path === '' && method !== 'GET' && method !== 'POST') {
+  if (path === '' && method !== 'GET' && method !== 'POST') {
     return text(405, 'annotation inbox: GET, POST')
   }
-  if (request.path === '/resolve' && method !== 'POST') {
+  if (path === '/resolve' && method !== 'POST') {
     return text(405, 'annotation inbox: POST')
   }
 
-  const role = await authorize(request)
-  if (!role) return text(401, 'annotation inbox: unauthorized')
+  if (!principal) return text(401, 'annotation inbox: unauthorized')
 
-  if (request.path === '/resolve') {
+  if (path === '/resolve') {
     let parsed: unknown
     try {
-      parsed = JSON.parse(await request.body())
+      parsed = JSON.parse(await readBody())
     } catch {
       parsed = undefined
     }
@@ -405,11 +468,15 @@ export async function handleInboxRequest(
     if (status !== 'implemented' && status !== 'rejected') {
       return text(400, 'annotation inbox: status must be "implemented" or "rejected"')
     }
+    const reason = typeof resolution === 'string' && resolution.trim() ? resolution.trim() : undefined
+    if (status === 'rejected' && !reason) {
+      return text(400, 'annotation inbox: rejected needs a resolution — the reason is what a refusal is for')
+    }
     const result = await inbox.resolve(
       ids as string[],
       status,
-      typeof resolution === 'string' && resolution.trim() ? resolution.trim() : undefined,
-      role,
+      reason,
+      principalLabel(principal),
     )
     return json(200, result)
   }
@@ -417,7 +484,7 @@ export async function handleInboxRequest(
   if (method === 'POST') {
     let parsed: unknown
     try {
-      parsed = JSON.parse(await request.body())
+      parsed = JSON.parse(await readBody())
     } catch {
       parsed = undefined
     }
@@ -427,19 +494,19 @@ export async function handleInboxRequest(
     return { status: 204, headers: {}, body: '' }
   }
 
-  const requested = request.query.get('status') ?? 'open'
+  const requested = query.get('status') ?? 'open'
   if (!LIST_STATUSES[requested]) {
     return text(400, 'annotation inbox: status must be one of open, implemented, rejected, closed, all')
   }
   const status = requested as InboxStatus | 'closed' | 'all'
-  const sessionId = request.query.get('session') ?? undefined
+  const sessionId = query.get('session') ?? undefined
   const items = await inbox.list({ status, ...(sessionId ? { sessionId } : {}) })
 
-  if (request.query.get('format') === 'markdown') {
+  if (query.get('format') === 'markdown') {
     return {
       status: 200,
       headers: { 'content-type': 'text/markdown; charset=utf-8' },
-      body: renderMarkdown(items, status),
+      body: renderMarkdown(items, status, { base }),
     }
   }
   return json(200, { status, items } satisfies InboxListing)

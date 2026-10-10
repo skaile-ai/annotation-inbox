@@ -1,4 +1,4 @@
-import { AGENTATION_STORAGE_KEY, INBOX_POLL_MS, INBOX_ROUTE, INBOX_SESSION_KEY } from '../contract'
+import { AGENTATION_STORAGE_KEY, INBOX_POLL_MS, INBOX_SESSION_KEY, inboxRoutes } from '../contract'
 import type { InboxAnnotation, InboxItem, InboxPayload } from '../contract'
 
 /**
@@ -43,7 +43,8 @@ export interface InboxDeps {
   removeAnnotation(id: string): unknown
 }
 
-export function installAnnotationInbox(deps: InboxDeps): void {
+export function installAnnotationInbox(deps: InboxDeps, options: { base?: string } = {}): void {
+  const routes = inboxRoutes(options.base)
   /**
    * This tab's identity, for the life of this tab. `sessionStorage` is exactly
    * the right lifetime: a reload keeps the id, so a reloaded tab still owns
@@ -97,12 +98,12 @@ export function installAnnotationInbox(deps: InboxDeps): void {
       markdown: annotations.length > 0 ? deps.formatAnnotations(annotations, 'standard', location.href) : '',
     }
 
-    void fetch(INBOX_ROUTE, {
+    void fetch(routes.list, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     }).catch(() => {
-      console.warn(`[annotation-inbox] could not reach ${INBOX_ROUTE}; the annotation is still in this tab`)
+      console.warn(`[annotation-inbox] could not reach ${routes.list}; the annotation is still in this tab`)
     })
   }
 
@@ -143,7 +144,7 @@ export function installAnnotationInbox(deps: InboxDeps): void {
     if (mine.length === 0) return
 
     try {
-      const response = await fetch(`${INBOX_ROUTE}?session=${sessionId}&status=closed`)
+      const response = await fetch(`${routes.list}?session=${sessionId}&status=closed`)
       if (!response.ok) return
       const { items } = await response.json() as { items: InboxItem[] }
       for (const item of items) deps.removeAnnotation(item.id)

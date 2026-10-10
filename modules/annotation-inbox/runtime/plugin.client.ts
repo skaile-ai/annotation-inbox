@@ -1,12 +1,13 @@
-import { defineNuxtPlugin } from '#app'
+import { defineNuxtPlugin, useRuntimeConfig } from '#app'
 import { mountAnnotationToolbar } from './mount'
 
 /**
- * The Nuxt end of the shared mount. Registered by the layer's module and only
- * under `nuxt dev`, so this file is never in a production plugin graph — the
- * `.client` suffix and `mode: 'client'` keep it out of Nitro as well, because
- * the mount touches `document` and the toolbar reads `sessionStorage`.
+ * The Nuxt end of the shared mount. Registered by the package's Nuxt module;
+ * the `.client` suffix and `mode: 'client'` keep it out of Nitro, because the
+ * mount touches `document` and the toolbar reads `sessionStorage`. The base is
+ * the module's `base` option, handed over through public runtime config.
  */
 export default defineNuxtPlugin(() => {
-  mountAnnotationToolbar()
+  const base = (useRuntimeConfig().public.annotationInbox as { base?: string } | undefined)?.base
+  mountAnnotationToolbar({ base })
 })

@@ -1,11 +1,11 @@
 ---
 name: annotation-inbox
 description: List and answer the annotations a human left by clicking the running app of this workspace.
-version: 0.2.0
+version: 1.0.0-rc.0
 transport: stdio
 command: node
 args:
-  - "${workspace}/node_modules/nuxt-layer-annotation-inbox/dist/mcp.mjs"
+  - "${workspace}/node_modules/@skaile-ai/annotation-inbox/dist/mcp.mjs"
 env:
   ANNOTATION_INBOX_ROOT: "${workspace}"
 ---

@@ -19,6 +19,7 @@ export function openFileInbox(root: string): Inbox {
 }
 
 export { createInbox, renderMarkdown, resolveTarget } from './inbox.ts'
-export type { Inbox, InboxStore } from './inbox.ts'
+export type { Inbox, InboxEvent, InboxListener, InboxOptions, InboxStore } from './inbox.ts'
 export { INBOX_DIR, INBOX_ROUTE, INBOX_RESOLVE_ROUTE } from './contract.ts'
-export type { InboxItem, InboxListing, InboxRole, InboxStatus, InboxTarget } from './contract.ts'
+export type { InboxItem, InboxListing, InboxStatus, InboxTarget } from './contract.ts'
+export type { AgentPrincipal, HumanPrincipal, Principal } from './principal.ts'

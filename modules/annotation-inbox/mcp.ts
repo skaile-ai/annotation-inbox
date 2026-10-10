@@ -29,7 +29,7 @@ const root = resolveRoot(process.argv.slice(2), process.env)
 const inbox = openFileInbox(root)
 console.error(`annotation inbox mcp: ${resolve(root, INBOX_DIR)}`)
 
-const server = new McpServer({ name: 'annotation-inbox', version: '0.2.0' })
+const server = new McpServer({ name: 'annotation-inbox', version: '1.0.0-rc.0' })
 
 const text = (value: string, isError = false) => ({
   content: [{ type: 'text' as const, text: value }],

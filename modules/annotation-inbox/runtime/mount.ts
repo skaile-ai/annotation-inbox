@@ -1,10 +1,10 @@
 /// <reference types="vite/client" />
-// For the `?inline` stylesheet import below: this layer is meant to be copied
-// into projects whose TypeScript setup it knows nothing about, so it teaches
+// For the `?inline` stylesheet import below: this package is meant to be consumed by
+// projects whose TypeScript setup it knows nothing about, so it teaches
 // itself that Vite's `?inline` query hands back a string instead of a side
 // effect rather than relying on the host's config to have done it.
 
-import { INBOX_ACCESS_ROUTE } from '../contract'
+import { inboxRoutes } from '../contract'
 import { installAnnotationInbox } from './inbox'
 
 /**
@@ -13,11 +13,10 @@ import { installAnnotationInbox } from './inbox'
  *
  * A human clicks an element, writes a comment, and the note is mirrored to the
  * dev server, which writes it into `.data/annotations/`. An agent reads the
- * file. See this layer's `README.md`.
+ * file. See this package's `README.md`.
  *
- * **One file for two harnesses.** Nuxt reaches it through a plugin the layer's
- * module registers *only* under `nuxt dev`
- * (`../index.ts`); Storybook imports it from its `preview.ts`. Nothing in an
+ * **One file for two harnesses.** Nuxt reaches it through a plugin the
+ * Nuxt module registers (`../../../src/nuxt.ts`); Storybook imports it from its `preview.ts`. Nothing in an
  * app's scanned source refers to it, so sharing it costs no reference in the
  * shipped plugin graph — which is exactly what used to force a Nuxt copy and a
  * Storybook copy to exist side by side.
@@ -39,10 +38,11 @@ import { installAnnotationInbox } from './inbox'
  * The toolbar therefore ships, but never arrives unasked: every import of it
  * below is dynamic, so it is a chunk of its own, and the chunk is fetched only
  * after the server has said this reader may annotate. A reader who may not
- * downloads none of it. The rule is held by a test (this layer's
+ * downloads none of it. The rule is held by a test (this package's
  * `test/locks.spec.ts`) rather than by habit.
  */
-export function mountAnnotationToolbar(): void {
+export function mountAnnotationToolbar(options: { base?: string } = {}): void {
+  const routes = inboxRoutes(options.base)
   /*
    * Only where a human is actually looking at the page — and, outside a dev
    * build, only where the server says this human may annotate.
@@ -153,7 +153,7 @@ export function mountAnnotationToolbar(): void {
     if (!import.meta.env.DEV) {
       let allowed = false
       try {
-        const response = await fetch(INBOX_ACCESS_ROUTE)
+        const response = await fetch(routes.access)
         allowed = response.ok && (await response.json() as { allowed?: boolean }).allowed === true
       } catch {
         allowed = false
@@ -189,7 +189,7 @@ export function mountAnnotationToolbar(): void {
       // this, the library saves, and the save republishes the session without
       // it — which is also the acknowledgement the server waits for.
       removeAnnotation: useAnnotations().removeAnnotation,
-    })
+    }, { base: options.base })
 
     const style = document.createElement('style')
     style.textContent = agentationCss

@@ -69,19 +69,17 @@ the human believes you read.
 
 ## Installing it
 
-Add `nuxt-layer-annotation-inbox` as a devDependency, and add `.data/` to `.gitignore` —
+Add `@skaile-ai/annotation-inbox` as a devDependency, and add `.data/` to `.gitignore` —
 the notes are as ephemeral as the browser session they were made in and are never
-committed. Installing it straight from GitHub
-(`npm i -D github:mortegro/nuxt-annotation-inbox#v0.1.1`) needs npm 11 and must not run
-with `--ignore-scripts`; npm 10 cannot prepare it at all.
+committed.
 
 For Nuxt, one line in `nuxt.config.ts` and nothing else:
 
 ```ts
-extends: ['nuxt-layer-annotation-inbox']
+modules: ['@skaile-ai/annotation-inbox/nuxt']
 ```
 
-The layer's module registers the toolbar plugin, the routes and a storage mount in every
+The module (options `token`, `base`, `dir`, `authorize` — all optional) registers the toolbar plugin, the routes and a storage mount in every
 environment except a `@nuxt/test-utils` run, so there is no flag to set. In a dev server
 everyone may annotate. In a deployed build nobody may until the host says so: an agent
 sends `Authorization: Bearer $NUXT_ANNOTATION_INBOX_TOKEN`, and a human's session is judged
@@ -94,7 +92,7 @@ In `.storybook/main.ts`, inside `viteFinal`:
 
 ```ts
 import { VueTracer } from 'vite-plugin-vue-tracer'
-import { annotationInbox } from 'nuxt-layer-annotation-inbox/vite'
+import { annotationInbox } from '@skaile-ai/annotation-inbox/vite'
 
 plugins: [vue(), VueTracer(), annotationInbox({ endpoint: true })],
 ```
@@ -107,7 +105,7 @@ equivalent line.
 In `.storybook/preview.ts`:
 
 ```ts
-import { mountAnnotationToolbar } from 'nuxt-layer-annotation-inbox/mount'
+import { mountAnnotationToolbar } from '@skaile-ai/annotation-inbox/mount'
 
 setup(() => mountAnnotationToolbar())
 ```
@@ -119,7 +117,7 @@ mounting it.
 A plain Vite app — no Nuxt, no Vue — is wired like Storybook, plus four pieces whose
 absence each breaks something: an ESM `vite.config.mjs`, a serve-only
 `@vitejs/plugin-vue` for the toolbar's own `.vue` files, `optimizeDeps.exclude:
-['nuxt-layer-annotation-inbox']` (else two Vues: `Cannot read properties of null (reading
+['@skaile-ai/annotation-inbox']` (else two Vues: `Cannot read properties of null (reading
 'ce')`), and a mount behind `if (import.meta.env.DEV)` in the app's entry so the build
 carries none of it. The README's *A plain Vite app* has the code; copy it from there.
 

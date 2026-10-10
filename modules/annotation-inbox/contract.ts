@@ -24,6 +24,17 @@
  */
 export const INBOX_ROUTE = '/__annotations'
 
+/**
+ * The three routes under a base other than the default — the module's `base`
+ * option. Client and server both derive theirs from here, so a rename cannot
+ * leave one half asking the other for a route it does not serve.
+ */
+export const inboxRoutes = (base: string = INBOX_ROUTE) => ({
+  list: base,
+  resolve: `${base}/resolve`,
+  access: `${base}/access`,
+})
+
 /** Where an agent closes a note it has acted on, or refuses it with a reason. */
 export const INBOX_RESOLVE_ROUTE = `${INBOX_ROUTE}/resolve`
 
@@ -127,9 +138,6 @@ export interface InboxPayload {
  */
 export type InboxStatus = 'open' | 'implemented' | 'rejected'
 
-/** Who closed a note. */
-export type InboxRole = 'agent' | 'reviewer'
-
 /**
  * What the note is about — never absent.
  *
@@ -165,7 +173,8 @@ export interface InboxItem extends InboxAnnotation {
   resolvedAt?: string
   /** Why, in the resolver's words. The point of `rejected`. */
   resolution?: string
-  resolvedBy?: InboxRole
+  /** `agent`, or the name (else id) of the human who closed it — `principalLabel`. */
+  resolvedBy?: string
 }
 
 /**

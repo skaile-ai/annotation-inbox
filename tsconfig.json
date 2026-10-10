@@ -34,5 +34,5 @@
   // this config to resolve the alias would mean shipping a shim for a module
   // the package does not own.
   "exclude": ["modules/annotation-inbox/runtime/plugin.client.ts"],
-  "include": ["nuxt.config.ts", "tsdown.config.ts", "vitest.config.ts", "modules/**/*.ts", "test/**/*.ts"]
+  "include": ["tsdown.config.ts", "vitest.config.ts", "src/**/*.ts", "modules/**/*.ts", "test/**/*.ts"]
 }

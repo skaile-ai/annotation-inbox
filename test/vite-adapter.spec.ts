@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { createStorage } from 'unstorage'
 import memoryDriver from 'unstorage/drivers/memory'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { DEV_PRINCIPAL } from '../modules/annotation-inbox/principal'
 import { createInboxHandler } from '../modules/annotation-inbox/vite'
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
@@ -23,7 +24,7 @@ let server: Server
 let origin: string
 
 beforeAll(async () => {
-  const handle = createInboxHandler({ store, authorize: async () => 'reviewer' })
+  const handle = createInboxHandler({ store, authorize: async () => DEV_PRINCIPAL })
   server = createServer((req, res) => {
     void handle(req, res)
   })

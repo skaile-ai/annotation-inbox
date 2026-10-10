@@ -56,7 +56,7 @@ const PACKAGE = 'agentation-vue'
 const MOUNT = 'modules/annotation-inbox/runtime/mount.ts'
 
 /** The Nuxt module, which owns what the build is told about those chunks. */
-const MODULE = 'modules/annotation-inbox/index.ts'
+const MODULE = 'src/nuxt.ts'
 
 /** This package's manifest, which owns the dependency. */
 const MANIFEST = 'package.json'
@@ -76,7 +76,7 @@ const MOUNTS = [
     file: MOUNT,
     literal: 'import.meta.env.DEV',
     guard: /if\s*\(\s*!import\.meta\.env\.DEV\s*\)\s*\{/,
-    probe: /fetch\(\s*INBOX_ACCESS_ROUTE\s*\)/,
+    probe: /fetch\(\s*routes\.access\s*\)/,
   },
 ] as const
 
@@ -85,8 +85,8 @@ const ALLOWED: readonly string[] = MOUNTS.map(mount => mount.file).sort()
 
 /**
  * Where this package's source lives. `modules/` is nearly all of it — the
- * Vite plugin, the Nuxt module and the runtime the two share — plus the
- * layer's own `nuxt.config.ts`. `test/` is in the list so that a fixture or
+ * Vite plugin, the core and the runtime shared with the Nuxt module — plus
+ * `src/`, which holds the Nuxt module itself. `test/` is in the list so that a fixture or
  * helper landing beside the specs is scanned like anything else; the specs
  * themselves are taken back out below. Root files are named one by one rather
  * than globbed: the root also holds `package.json`, which legitimately names
@@ -100,8 +100,8 @@ const ALLOWED: readonly string[] = MOUNTS.map(mount => mount.file).sort()
  * config's own subject, which entries ship compiled and which ship as source,
  * is argued in the file itself.
  */
-const SCANNED_DIRS: readonly string[] = ['modules', 'test']
-const SCANNED_ROOT_FILES: readonly string[] = ['nuxt.config.ts']
+const SCANNED_DIRS: readonly string[] = ['src', 'modules', 'test']
+const SCANNED_ROOT_FILES: readonly string[] = []
 
 /** Extensions worth reading as text; anything else cannot hold an import. */
 const SCANNED = /\.(?:ts|vue|js|mjs|css|json)$/
@@ -196,7 +196,7 @@ describe('the annotation toolbar reaches a browser only through the gate', () =>
 
       expect(
         probeAt,
-        `\`${file}\` no longer asks \`INBOX_ACCESS_ROUTE\` before mounting. That request is the whole `
+        `\`${file}\` no longer asks the access route (\`routes.access\`) before mounting. That request is the whole `
         + 'licence argument in a build: without it the toolbar appears for anyone who loads the page, '
         + `and \`${PACKAGE}\` is PolyForm Shield 1.0.0.`,
       ).toBeGreaterThanOrEqual(0)
