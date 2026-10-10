@@ -2,8 +2,8 @@
 # `v*` tag is pushed:  git tag v1.0.0 && git push origin v1.0.0
 #
 # npmjs needs the repository secret NPM_TOKEN (an automation token with publish
-# rights on the @skaile-ai scope); without it that step is skipped and only
-# GitHub Packages is published. GitHub Packages uses the workflow's own
+# rights on the @skaile-ai scope); the run fails before publishing anything when
+# it is missing, so a release always reaches both registries. GitHub Packages uses the workflow's own
 # GITHUB_TOKEN, which can publish only a package whose scope equals the owner of
 # this repository (@skaile-ai → the skaile-ai organisation).
 name: publish
@@ -29,11 +29,15 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Tag matches package.json
+      - name: Release preconditions (tag = package.json version, NPM_TOKEN set)
         run: |
           version="$(node -p "require('./package.json').version")"
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "secret NPM_TOKEN is missing: a release publishes to npmjs and GitHub Packages" >&2
             exit 1
           fi
 
@@ -44,7 +48,6 @@ jobs:
       - run: npm test
 
       - name: Publish to npmjs
-        if: env.NPM_TOKEN != ''
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$RUNNER_TEMP/npmrc-npmjs"
           npm publish --access public --userconfig "$RUNNER_TEMP/npmrc-npmjs" --registry https://registry.npmjs.org
