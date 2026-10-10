@@ -149,6 +149,27 @@ describe('resolving notes', () => {
     expect(closed).toMatchObject({ inboxId: 'a1b2c3d4e5f6-1', status: 'implemented', resolution: 'erledigt' })
   })
 
+  it('treats a reused local id as a new note once the toolbar counter resets', async () => {
+    await inbox.resolve(['a1b2c3d4e5f6-1'], 'implemented', 'erledigt', 'agent')
+    await inbox.publish(payload('a1b2c3d4e5f6', [
+      annotation('1', 'neuer Hinweis', { timestamp: 1_700_000_500_000 }),
+      annotation('2', 'nicht umsetzbar'),
+    ]))
+
+    const open = await inbox.list({ status: 'open' })
+    expect(open.find(item => item.comment === 'neuer Hinweis')).toMatchObject({ status: 'open' })
+    const closed = await inbox.list({ status: 'closed' })
+    expect(closed).toMatchObject([
+      { inboxId: 'a1b2c3d4e5f6-1', status: 'implemented', resolution: 'erledigt', comment: 'umsetzbar' },
+    ])
+
+    await inbox.publish(payload('a1b2c3d4e5f6', [
+      annotation('1', 'neuer Hinweis', { timestamp: 1_700_000_500_000 }),
+      annotation('2', 'nicht umsetzbar'),
+    ]))
+    expect((await inbox.list({ status: 'open' })).filter(item => item.comment === 'neuer Hinweis')).toHaveLength(1)
+  })
+
   it('lets an agent correct a note it closed too early', async () => {
     await inbox.resolve(['a1b2c3d4e5f6-1'], 'implemented', 'erledigt', 'agent')
     await inbox.resolve(['a1b2c3d4e5f6-1'], 'rejected', 'doch nicht machbar', 'agent')

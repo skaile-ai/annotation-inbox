@@ -209,9 +209,20 @@ export function createInbox(store: InboxStore): Inbox {
 
       const itemIds: string[] = [...closed]
       for (const annotation of payload.annotations) {
-        const inboxId = `${payload.sessionId}-${annotation.id}`
+        let inboxId = `${payload.sessionId}-${annotation.id}`
+        let existing = await readItem(inboxId)
+        // The toolbar's per-tab counter (`annotation.id`) is seeded from the notes
+        // still in `sessionStorage` at mount time (reload, HMR remount, or every
+        // open note resolved back to zero), while `sessionId` lives as long as the
+        // tab. A new note can therefore land on an id an already resolved note
+        // owns, and inheriting that record's status makes it vanish from `open`
+        // unseen. `timestamp` is set once per note and stays fixed across its
+        // republishes, so a mismatch tells a reused id from a resent note.
+        if (existing && existing.timestamp !== annotation.timestamp) {
+          inboxId = `${payload.sessionId}-${annotation.id}-${annotation.timestamp}`
+          existing = await readItem(inboxId)
+        }
         if (!itemIds.includes(inboxId)) itemIds.push(inboxId)
-        const existing = await readItem(inboxId)
         await store.setItem(itemKey(inboxId), {
           ...annotation,
           inboxId,
