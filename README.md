@@ -319,7 +319,7 @@ either list this repository under `sources:` in `skaile.yaml` and depend on the 
 
 ```yaml
 sources:
-  - url: https://github.com/mortegro/nuxt-annotation-inbox
+  - url: https://github.com/skaile-ai/annotation-inbox
 dependencies:
   - mcp-server:annotation-inbox
 ```
@@ -537,7 +537,7 @@ without anybody naming the skill.
 Wiring it up in a consuming project is one of:
 
 ```
-npx skills add mortegro/nuxt-annotation-inbox
+npx skills add skaile-ai/annotation-inbox
 ln -s ../../node_modules/@skaile-ai/annotation-inbox/skills/annotation-inbox .claude/skills/annotation-inbox
 ```
 
