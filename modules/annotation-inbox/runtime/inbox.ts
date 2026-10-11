@@ -234,7 +234,14 @@ export function installAnnotationInbox(deps: InboxDeps, options: { base?: string
         const response = await fetch(`${base}?session=${sessionId}&status=closed`)
         if (!response.ok) return
         const { items } = await response.json() as { items: InboxItem[] }
-        for (const item of items) deps.removeAnnotation(item.id)
+        for (const item of items) {
+          // `item.id` is the tab's own counter, which restarts at 1 once every note
+          // has been answered or after a reload, while the server keeps the answered
+          // item for the reviewer. Matching on the id alone would take the *new*
+          // note that reused it off the page; the note's `timestamp` is what stays
+          // fixed from creation, as the server's `publish` also relies on.
+          if (mine.some(note => note.id === item.id && note.timestamp === item.timestamp)) deps.removeAnnotation(item.id)
+        }
       } catch {
         // The next tick retries. A dev server that has just restarted must not
         // turn into a console full of failures.

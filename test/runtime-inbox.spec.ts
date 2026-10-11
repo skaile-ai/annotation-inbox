@@ -141,6 +141,21 @@ describe('without a resolver', () => {
     expect(calls).toEqual([])
   })
 
+  it('leaves a new note alone when an answered one of an earlier count shares its id', async () => {
+    install()
+    // The toolbar's counter restarts at 1 after a reload or once every note is answered,
+    // and the server keeps the answered note: same id, another `timestamp`.
+    write([{ ...note('1', pageA), timestamp: 1_800_000_000_000 }])
+    closed[MODULE_BASE] = [closedItem('1')]
+
+    await tick()
+    expect(removed).toEqual([])
+
+    closed[MODULE_BASE] = [{ ...closedItem('1'), timestamp: 1_800_000_000_000 }]
+    await tick()
+    expect(removed).toEqual(['1'])
+  })
+
   it('uses the base option for the one base', () => {
     install({ base: '/notes' })
     write([note('1', pageA)])

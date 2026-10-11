@@ -17,6 +17,14 @@
   uses the module's base. The resolver is read at call time, so a host plugin may register it
   before or after the toolbar mounts.
 
+### Fixed
+
+- The poller no longer takes a *new* note off the page because an answered note of the same
+  `id` is still on the server. The toolbar's counter restarts at 1 after a reload or once every
+  note is answered, and the server keeps answered notes for the reviewer; matching on the id
+  alone removed the new note within one poll, and its next publish deleted it from the inbox.
+  A returned note now removes the local one only when its `timestamp` matches too.
+
 ### Unchanged
 
 - Without a resolver the client makes exactly the requests 1.0.0 did: one base, one POST per
