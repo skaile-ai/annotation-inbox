@@ -82,7 +82,7 @@ The package is published to npmjs; no token or `.npmrc` entry is needed to insta
 
 Entries, each with declarations: `.` (types, `createInbox`, `renderMarkdown`,
 `resolveTarget`), `./nuxt`, `./vite`, `./mount` (raw source — the consumer's Vite compiles
-it), `./inbox` (`openFileInbox`, Node), `./mcp` (stdio bin), `./server` (route handler for
+it; also `setAnnotationInboxBaseResolver`), `./inbox` (`openFileInbox`, Node), `./mcp` (stdio bin), `./server` (route handler for
 non-Nitro servers), `./testing` (storage contract suite), `./vue` (composable and list) with
 `./vue.css` and `./styles/tokens.css`. Host frameworks are optional peers (`nuxt` and
 `@nuxt/kit` for `./nuxt`, `vite` for `./vite`, `vue` for `./vue`, `vitest` for `./testing`):
@@ -273,6 +273,48 @@ Network panel or a headless run. A refused reader fetches strictly fewer files t
 allowed one — measured on a fresh Nuxt 4 project against this package: seven versus ten,
 the difference being the toolbar's two chunks. If the counts match, the gate is decorative;
 look for a static `import … from 'agentation-vue'` that pulled the library into the entry.
+
+## One toolbar, several inboxes
+
+By default every note of the toolbar goes to the module's own inbox (`base`, `/__annotations`).
+A host whose notes belong somewhere that depends on the page — a workspace-scoped inbox
+behind its own auth, say — registers a resolver from a client plugin:
+
+```ts
+// app/plugins/annotation-inbox.client.ts
+import { setAnnotationInboxBaseResolver } from '@ecsplico/annotation-inbox/mount'
+
+export default defineNuxtPlugin(() => {
+  setAnnotationInboxBaseResolver((pageUrl) => {
+    const workspace = new URL(pageUrl).pathname.match(/^\/workspace\/([^/]+)/)?.[1]
+    return workspace ? `/api/workspaces/${workspace}/annotations` : undefined
+  })
+})
+```
+
+The rule is one line: a note's base is `resolve(note.url ?? location.href) ?? <the module's
+base>`. The resolver gets the page the note was made on and answers with the **list route** of
+the inbox that should hold it (the routes under it — `/resolve`, `/access` — are derived as
+for any base), or `undefined` for the module's own. Pass `null` to remove it.
+
+- **What the client does.** It groups the tab's notes by base and POSTs each group as its own
+  payload — the same `sessionId`, `origin` and `url: location.href`, the markdown formatted
+  from that group alone. The bases a tab has published to are remembered in `sessionStorage`;
+  a base that held notes and now holds none receives an empty session, which is how a deleted
+  note, or one whose page now resolves elsewhere, leaves the old inbox. The republish on page
+  load follows the same rule. The poller asks `?session=<id>&status=closed` of each base that
+  currently holds a note and removes what comes back.
+- **What the server must do.** Each base has to speak the inbox's request surface — mount
+  `handleInboxRequest(openFileInbox(root), request, { base })` (`./server`, `./inbox`)
+  under it — and authorise it itself; the resolver only chooses where a request goes.
+- **`/access` stays global.** The toolbar's "may I annotate here" probe still asks the
+  module's base, whose `annotation-inbox:authorize` hook decides who gets a toolbar at all;
+  the per-base routes then decide who may publish or read there.
+- **Timing.** The resolver is read each time a note is published or polled, never captured,
+  so registering it before or after the toolbar mounts is equivalent. A note whose page
+  resolved to `undefined` (or whose resolver threw) was published to the module's base, and
+  moves when the resolver later answers differently.
+- **No resolver, no change.** Without one the client makes the single request it always has.
 
 ## Reading and answering annotations
 
@@ -557,7 +599,7 @@ modules/annotation-inbox/principal.ts           Principal types and the dev/toke
 modules/annotation-inbox/vite.ts                the dev-server adapter; Storybook's entry
 modules/annotation-inbox/runtime/server/handler.ts  the Nitro adapter, and who is allowed in
 modules/annotation-inbox/runtime/mount.ts       the toolbar mount, both harnesses
-modules/annotation-inbox/runtime/inbox.ts       storage adapter, component detector, poller
+modules/annotation-inbox/runtime/inbox.ts       storage adapter, component detector, poller, base resolver
 modules/annotation-inbox/runtime/plugin.client.ts  Nuxt's entry into the mount
 dist/                                           the built entries, with declarations
 skills/annotation-inbox/SKILL.md                the agent's operating manual

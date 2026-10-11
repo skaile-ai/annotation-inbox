@@ -47,7 +47,7 @@ skipped is a note the human believes you read.
 |---|---|
 | `@ecsplico/annotation-inbox` | types (`InboxItem`, `InboxStatus`, `InboxTarget`), `createInbox(store)` with `subscribe`, `renderMarkdown`, `resolveTarget`, `Principal` types |
 | `/nuxt` | the Nuxt module: `modules: ['@ecsplico/annotation-inbox/nuxt']`, options `token`, `base`, `dir`, `authorize`; Nitro hook `annotation-inbox:authorize` |
-| `/vite`, `/mount` | Storybook and plain Vite wiring |
+| `/vite`, `/mount` | Storybook and plain Vite wiring; `/mount` also exports `setAnnotationInboxBaseResolver(resolve \| null)` |
 | `/inbox` | `openFileInbox(root)` for Node tools |
 | `/mcp` | the stdio server (`dist/mcp.mjs`, bin `annotation-inbox-mcp`) |
 | `/server` | `handleInboxRequest(inbox, request, { base })` for non-Nitro servers |
@@ -62,3 +62,11 @@ route. `<AnnotationList>` also takes `readonly` (hides Implement/Reject; the lis
 reads and refreshes), emits `open(item)` on click/Enter of a target when the host listens
 for it (otherwise the target stays plain text), and has a `target` slot receiving
 `{ item, text }` (`text` = `file:line:col` or the route).
+
+A host that wants a note to land in an inbox other than `/__annotations` (a workspace-scoped
+one, say) registers `setAnnotationInboxBaseResolver((pageUrl) => listRoute | undefined)` from
+a client plugin. Each note's base is `resolve(note.url ?? location.href) ?? <module base>`;
+the client POSTs each base only its own notes, sends an empty session to a base that lost its
+last note, and polls only bases holding notes. The base is a list route (`GET`/`POST`, with
+`/resolve` under it) — the agent reads and resolves there exactly as at `/__annotations`.
+`/access` stays on the module's base. See README "One toolbar, several inboxes".

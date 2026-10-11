@@ -1,4 +1,4 @@
-import { AGENTATION_STORAGE_KEY, INBOX_POLL_MS, INBOX_SESSION_KEY, inboxRoutes } from '../contract'
+import { AGENTATION_STORAGE_KEY, INBOX_BASES_KEY, INBOX_POLL_MS, INBOX_SESSION_KEY, inboxRoutes } from '../contract'
 import type { InboxAnnotation, InboxItem, InboxPayload } from '../contract'
 
 /**
@@ -43,6 +43,30 @@ export interface InboxDeps {
   removeAnnotation(id: string): unknown
 }
 
+/**
+ * Where a host says which inbox a note belongs to: given the page a note was
+ * made on, the list route of the inbox that should hold it, or `undefined` for
+ * the module's own.
+ */
+export type AnnotationInboxBaseResolver = (pageUrl: string) => string | undefined
+
+let baseResolver: AnnotationInboxBaseResolver | null = null
+
+/**
+ * Registers (or, with `null`, removes) the host's base resolver. Module-level
+ * and read lazily by the publisher, so a host plugin may call it before or
+ * after the toolbar mounts — and a host that never calls it gets one inbox,
+ * the module's `base`, exactly as before.
+ *
+ * It lives in this file, reachable as `@ecsplico/annotation-inbox/mount`, and
+ * nothing here names the toolbar library, so a host plugin importing it adds a
+ * few lines to a reader who is never allowed to annotate and none of the
+ * toolbar.
+ */
+export function setAnnotationInboxBaseResolver(resolve: AnnotationInboxBaseResolver | null): void {
+  baseResolver = resolve
+}
+
 export function installAnnotationInbox(deps: InboxDeps, options: { base?: string } = {}): void {
   const routes = inboxRoutes(options.base)
   /**
@@ -68,7 +92,56 @@ export function installAnnotationInbox(deps: InboxDeps, options: { base?: string
   })()
 
   /**
-   * One POST per change, carrying the whole session for this origin.
+   * The tab's notes by the list route each belongs to. Without a resolver that
+   * is one group holding all of them, empty or not, under the module's base —
+   * the single request this has always been. With one, each note goes where
+   * `resolve(note.url ?? location.href)` says, and a note it declines for
+   * (`undefined`, or an exception) goes to the module's base like every note
+   * did before a resolver existed.
+   *
+   * Read at call time, never captured: a host plugin may register the resolver
+   * before or after this runs, and may replace it while the tab lives.
+   */
+  function groupByBase(annotations: InboxAnnotation[]): Map<string, InboxAnnotation[]> {
+    const resolve = baseResolver
+    if (!resolve) return new Map([[routes.list, annotations]])
+
+    const groups = new Map<string, InboxAnnotation[]>()
+    for (const annotation of annotations) {
+      let base: string | undefined
+      try {
+        base = resolve(annotation.url ?? location.href)
+      } catch {
+        base = undefined
+      }
+      const key = base ?? routes.list
+      const group = groups.get(key)
+      if (group) group.push(annotation)
+      else groups.set(key, [annotation])
+    }
+    return groups
+  }
+
+  /** The bases this tab last published at least one note to. */
+  function publishedBases(): string[] {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(INBOX_BASES_KEY) ?? '[]') as unknown
+      return Array.isArray(parsed) ? parsed.filter((base): base is string => typeof base === 'string') : []
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * One POST per base per change, each carrying the whole session as far as
+   * that base is concerned: the notes that resolve to it, and nothing else.
+   * Without a resolver there is exactly one base and this is the single POST
+   * of old.
+   *
+   * A base that held notes of this tab at the last publish and holds none now
+   * gets an empty session, the same message a tab sends when its last note is
+   * deleted — without it a note the reader deleted, or one whose page now
+   * resolves elsewhere, would stay in the first base's inbox for ever.
    *
    * Fire and forget. The `sessionStorage` write the library just made is the
    * authoritative copy as far as the toolbar is concerned; the file is a
@@ -87,6 +160,17 @@ export function installAnnotationInbox(deps: InboxDeps, options: { base?: string
       annotations = []
     }
 
+    const groups = groupByBase(annotations)
+    const holding: string[] = []
+    for (const base of new Set([...groups.keys(), ...publishedBases()])) {
+      const notes = groups.get(base) ?? []
+      if (notes.length > 0) holding.push(base)
+      publish(base, notes)
+    }
+    sessionStorage.setItem(INBOX_BASES_KEY, JSON.stringify(holding))
+  }
+
+  function publish(base: string, annotations: InboxAnnotation[]): void {
     const payload: InboxPayload = {
       sessionId,
       origin: location.origin,
@@ -98,12 +182,12 @@ export function installAnnotationInbox(deps: InboxDeps, options: { base?: string
       markdown: annotations.length > 0 ? deps.formatAnnotations(annotations, 'standard', location.href) : '',
     }
 
-    void fetch(routes.list, {
+    void fetch(base, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     }).catch(() => {
-      console.warn(`[annotation-inbox] could not reach ${routes.list}; the annotation is still in this tab`)
+      console.warn(`[annotation-inbox] could not reach ${base}; the annotation is still in this tab`)
     })
   }
 
@@ -143,15 +227,19 @@ export function installAnnotationInbox(deps: InboxDeps, options: { base?: string
     }
     if (mine.length === 0) return
 
-    try {
-      const response = await fetch(`${routes.list}?session=${sessionId}&status=closed`)
-      if (!response.ok) return
-      const { items } = await response.json() as { items: InboxItem[] }
-      for (const item of items) deps.removeAnnotation(item.id)
-    } catch {
-      // The next tick retries. A dev server that has just restarted must not
-      // turn into a console full of failures.
-    }
+    // Only the bases that hold a note of this tab are asked, and each on its
+    // own: one that is down must not keep the others' answers from arriving.
+    await Promise.all([...groupByBase(mine).keys()].map(async (base) => {
+      try {
+        const response = await fetch(`${base}?session=${sessionId}&status=closed`)
+        if (!response.ok) return
+        const { items } = await response.json() as { items: InboxItem[] }
+        for (const item of items) deps.removeAnnotation(item.id)
+      } catch {
+        // The next tick retries. A dev server that has just restarted must not
+        // turn into a console full of failures.
+      }
+    }))
   }
 
   setInterval(() => void poll(), INBOX_POLL_MS)

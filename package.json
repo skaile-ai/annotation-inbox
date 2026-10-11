@@ -1,6 +1,6 @@
 {
   "name": "@ecsplico/annotation-inbox",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Annotation toolbar whose notes reach coding agents with SFC source locations: framework-free core, Nuxt module, Vite plugin, HTTP and MCP surface",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "agents",
     "devtools"
   ],
-  "//exports": "Entries, and for each one who compiles it. `.` is the framework-free core, `./nuxt` the Nuxt module, `./vite`, `./inbox`, `./mcp`, `./server` and `./testing` are all loaded by Node or a test runner directly, and Node refuses to type-strip TypeScript under `node_modules`, so every one of them is built to `dist/` with declarations. `./mount` is raw source on purpose: the consumer's Vite is its compiler, and pre-bundling it would risk the `import.meta.env.DEV` dead-branch elimination that is what keeps the toolbar out of production builds. The Nuxt module's runtime (`modules/annotation-inbox/runtime/**`, plus the contract/inbox/principal files it imports) ships as source for the same reason — Nuxt and Nitro compile it; the built `dist/nuxt.mjs` locates it at `../modules/annotation-inbox`.",
+  "//exports": "Entries, and for each one who compiles it. `.` is the framework-free core, `./nuxt` the Nuxt module, `./vite`, `./inbox`, `./mcp`, `./server` and `./testing` are all loaded by Node or a test runner directly, and Node refuses to type-strip TypeScript under `node_modules`, so every one of them is built to `dist/` with declarations. `./mount` is raw source on purpose: the consumer's Vite is its compiler, and pre-bundling it would risk the `import.meta.env.DEV` dead-branch elimination that is what keeps the toolbar out of production builds. It also carries `setAnnotationInboxBaseResolver`, which lives in `runtime/inbox.ts` — a file that names no toolbar library — so a host plugin importing it from here adds none of the toolbar to a reader who may not annotate. The Nuxt module's runtime (`modules/annotation-inbox/runtime/**`, plus the contract/inbox/principal files it imports) ships as source for the same reason — Nuxt and Nitro compile it; the built `dist/nuxt.mjs` locates it at `../modules/annotation-inbox`.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -67,6 +67,7 @@
     "docs",
     "styles",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "//scripts": "`prepare` rather than `prepack`, because npm runs `prepare` for a git dependency after it is cloned, so a package installed straight from GitHub arrives with `dist/` built.",

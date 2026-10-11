@@ -66,6 +66,13 @@ export const INBOX_STORAGE_MOUNT = 'annotation-inbox'
 /** `sessionStorage` key holding this tab's session id. */
 export const INBOX_SESSION_KEY = 'annotation-inbox-session'
 
+/**
+ * `sessionStorage` key holding the list routes this tab has published notes to.
+ * Only ever more than the module's own route when the host registered a base
+ * resolver; it is how a base that no longer holds a note of this tab hears so.
+ */
+export const INBOX_BASES_KEY = 'annotation-inbox-bases'
+
 /** Environment variable holding the bearer token that identifies an agent. */
 export const INBOX_TOKEN_ENV = 'NUXT_ANNOTATION_INBOX_TOKEN'
 

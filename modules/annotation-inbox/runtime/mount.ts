@@ -8,6 +8,14 @@ import { inboxRoutes } from '../contract'
 import { installAnnotationInbox } from './inbox'
 
 /**
+ * The host's say in which inbox a note lands. Re-exported here so a Storybook
+ * preview or a host plugin has one import for the toolbar and for it; the state
+ * itself is `./inbox`, which names no toolbar library.
+ */
+export { setAnnotationInboxBaseResolver } from './inbox'
+export type { AnnotationInboxBaseResolver } from './inbox'
+
+/**
  * The annotation toolbar — apparatus for the *developer*, not the reader, and
  * the one mount both harnesses use.
  *
