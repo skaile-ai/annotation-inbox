@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1
+
+### Changed
+
+- The optional `vitest` peer accepts `^4.0.0 || ^5.0.0`. A consumer on vitest 5 no longer
+  needs `--legacy-peer-deps` to install the package. `./testing` uses only `describe`, `it`,
+  `expect` and `beforeEach`, which vitest 5 keeps unchanged; the package's own suite now runs
+  on vitest 5.
+
 ## 1.1.0
 
 ### Added
