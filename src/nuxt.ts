@@ -3,7 +3,7 @@ import type { NuxtModule } from '@nuxt/schema'
 import { INBOX_DIR, INBOX_ROUTE, INBOX_STORAGE_MOUNT } from '../modules/annotation-inbox/contract'
 import { annotationInbox } from '../modules/annotation-inbox/vite'
 
-/** What `modules: [['@skaile-ai/annotation-inbox/nuxt', options]]` (or the `annotationInbox` key) accepts. */
+/** What `modules: [['@ecsplico/annotation-inbox/nuxt', options]]` (or the `annotationInbox` key) accepts. */
 export interface ModuleOptions {
   /**
    * The shared secret an agent presents as `Authorization: Bearer`. Empty means

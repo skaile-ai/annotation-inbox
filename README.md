@@ -1,4 +1,4 @@
-# @skaile-ai/annotation-inbox
+# @ecsplico/annotation-inbox
 
 A Nuxt 4 module that turns "this button sits too low" into a file in your working copy, with
 the line of the SFC that draws the button. Storybook and plain Vite apps without Nuxt or
@@ -51,13 +51,13 @@ instead.
 ## Install
 
 ```bash
-npm i -D @skaile-ai/annotation-inbox
+npm i -D @ecsplico/annotation-inbox
 ```
 
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: ['@skaile-ai/annotation-inbox/nuxt'],
+  modules: ['@ecsplico/annotation-inbox/nuxt'],
 })
 ```
 
@@ -70,7 +70,7 @@ not a layer.
 Module options, all optional, under `annotationInbox` or as the module's tuple form:
 
 ```ts
-modules: [['@skaile-ai/annotation-inbox/nuxt', {
+modules: [['@ecsplico/annotation-inbox/nuxt', {
   token: '',              // shared agent secret; NUXT_ANNOTATION_INBOX_TOKEN overrides it at runtime
   base: '/__annotations', // where the routes are mounted
   dir: '.data/annotations', // the default filesystem store
@@ -78,9 +78,7 @@ modules: [['@skaile-ai/annotation-inbox/nuxt', {
 }]]
 ```
 
-The package is published to npmjs and to GitHub Packages with the same version. From npmjs
-no token is needed; inside the SKAILE repos `@skaile-ai:registry=https://npm.pkg.github.com`
-in `.npmrc` resolves it from GitHub Packages instead.
+The package is published to npmjs; no token or `.npmrc` entry is needed to install it.
 
 Entries, each with declarations: `.` (types, `createInbox`, `renderMarkdown`,
 `resolveTarget`), `./nuxt`, `./vite`, `./mount` (raw source — the consumer's Vite compiles
@@ -117,7 +115,7 @@ hand — two lines in `.storybook/main.ts`:
 
 ```ts
 import { VueTracer } from 'vite-plugin-vue-tracer'
-import { annotationInbox } from '@skaile-ai/annotation-inbox/vite'
+import { annotationInbox } from '@ecsplico/annotation-inbox/vite'
 
 // in viteFinal's mergeConfig:
 plugins: [vue(), ...(process.env.VITEST ? [] : [VueTracer(), annotationInbox({ endpoint: true })])],
@@ -126,7 +124,7 @@ plugins: [vue(), ...(process.env.VITEST ? [] : [VueTracer(), annotationInbox({ e
 and one in `.storybook/preview.ts`:
 
 ```ts
-import { mountAnnotationToolbar } from '@skaile-ai/annotation-inbox/mount'
+import { mountAnnotationToolbar } from '@ecsplico/annotation-inbox/mount'
 
 setup(() => mountAnnotationToolbar())
 ```
@@ -162,10 +160,10 @@ lit-html + Web Awesome, Vite 8, an Express API behind Vite's proxy), installed f
 // vite.config.mjs
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { annotationInbox } from '@skaile-ai/annotation-inbox/vite'
+import { annotationInbox } from '@ecsplico/annotation-inbox/vite'
 
 export default defineConfig({
-  optimizeDeps: { exclude: ['@skaile-ai/annotation-inbox'] },
+  optimizeDeps: { exclude: ['@ecsplico/annotation-inbox'] },
   plugins: [
     annotationInbox({ endpoint: true }),
     { ...vue(), apply: 'serve' },
@@ -177,7 +175,7 @@ export default defineConfig({
 ```js
 // the app's entry, after it has mounted itself
 if (import.meta.env.DEV) {
-  import('@skaile-ai/annotation-inbox/mount').then(({ mountAnnotationToolbar }) => mountAnnotationToolbar())
+  import('@ecsplico/annotation-inbox/mount').then(({ mountAnnotationToolbar }) => mountAnnotationToolbar())
 }
 ```
 
@@ -314,7 +312,7 @@ Two tools, named like the skill's vocabulary:
   `rejected` without a `resolution` is refused, as the skill requires.
 
 **In a `@skaile/workspaces` project** the server ships as an asset, `mcp/annotation-inbox/MCP.md`
-(kind `mcp-server`). Add `@skaile-ai/annotation-inbox` to the project's dependencies, then
+(kind `mcp-server`). Add `@ecsplico/annotation-inbox` to the project's dependencies, then
 either list this repository under `sources:` in `skaile.yaml` and depend on the asset:
 
 ```yaml
@@ -331,7 +329,7 @@ mcp_servers:
   - id: annotation-inbox
     transport: stdio
     command: node
-    args: ["${workspace}/node_modules/@skaile-ai/annotation-inbox/dist/mcp.mjs"]
+    args: ["${workspace}/node_modules/@ecsplico/annotation-inbox/dist/mcp.mjs"]
     env:
       ANNOTATION_INBOX_ROOT: "${workspace}"
 ```
@@ -347,7 +345,7 @@ server, which is why the root is passed as an environment variable.
   "mcpServers": {
     "annotation-inbox": {
       "command": "node",
-      "args": ["node_modules/@skaile-ai/annotation-inbox/dist/mcp.mjs"]
+      "args": ["node_modules/@ecsplico/annotation-inbox/dist/mcp.mjs"]
     }
   }
 }
@@ -356,7 +354,7 @@ server, which is why the root is passed as an environment variable.
 **From your own Node tool**, skip the protocol and open the inbox directly:
 
 ```ts
-import { openFileInbox } from '@skaile-ai/annotation-inbox/inbox'
+import { openFileInbox } from '@ecsplico/annotation-inbox/inbox'
 
 const inbox = openFileInbox('/path/to/project')
 const open = await inbox.list({ status: 'open' })
@@ -382,7 +380,7 @@ were asked to change, instead of (or next to) the toolbar. It has no UI-kit depe
 
 ```vue
 <script setup lang="ts">
-import { AnnotationList, useAnnotations } from '@skaile-ai/annotation-inbox/vue'
+import { AnnotationList, useAnnotations } from '@ecsplico/annotation-inbox/vue'
 
 const annotations = useAnnotations({
   list: '/__annotations',              // string, or () => string for a reactive endpoint
@@ -454,8 +452,8 @@ Import the sheets once — the defaults are declared under `:where(:root)`, so r
 ```ts
 // nuxt.config.ts
 css: [
-  '@skaile-ai/annotation-inbox/styles/tokens.css',
-  '@skaile-ai/annotation-inbox/vue.css',   // the list's own rules; they carry fallbacks too
+  '@ecsplico/annotation-inbox/styles/tokens.css',
+  '@ecsplico/annotation-inbox/vue.css',   // the list's own rules; they carry fallbacks too
 ],
 ```
 
@@ -538,7 +536,7 @@ Wiring it up in a consuming project is one of:
 
 ```
 npx skills add skaile-ai/annotation-inbox
-ln -s ../../node_modules/@skaile-ai/annotation-inbox/skills/annotation-inbox .claude/skills/annotation-inbox
+ln -s ../../node_modules/@ecsplico/annotation-inbox/skills/annotation-inbox .claude/skills/annotation-inbox
 ```
 
 A symlink keeps the manual in step with the package on every update; a copy is fine if

@@ -5,7 +5,7 @@ version: 1.0.0
 transport: stdio
 command: node
 args:
-  - "${workspace}/node_modules/@skaile-ai/annotation-inbox/dist/mcp.mjs"
+  - "${workspace}/node_modules/@ecsplico/annotation-inbox/dist/mcp.mjs"
 env:
   ANNOTATION_INBOX_ROOT: "${workspace}"
 ---

@@ -69,14 +69,14 @@ the human believes you read.
 
 ## Installing it
 
-Add `@skaile-ai/annotation-inbox` as a devDependency, and add `.data/` to `.gitignore` —
+Add `@ecsplico/annotation-inbox` as a devDependency, and add `.data/` to `.gitignore` —
 the notes are as ephemeral as the browser session they were made in and are never
 committed.
 
 For Nuxt, one line in `nuxt.config.ts` and nothing else:
 
 ```ts
-modules: ['@skaile-ai/annotation-inbox/nuxt']
+modules: ['@ecsplico/annotation-inbox/nuxt']
 ```
 
 The module (options `token`, `base`, `dir`, `authorize` — all optional) registers the toolbar plugin, the routes and a storage mount in every
@@ -92,7 +92,7 @@ In `.storybook/main.ts`, inside `viteFinal`:
 
 ```ts
 import { VueTracer } from 'vite-plugin-vue-tracer'
-import { annotationInbox } from '@skaile-ai/annotation-inbox/vite'
+import { annotationInbox } from '@ecsplico/annotation-inbox/vite'
 
 plugins: [vue(), VueTracer(), annotationInbox({ endpoint: true })],
 ```
@@ -105,7 +105,7 @@ equivalent line.
 In `.storybook/preview.ts`:
 
 ```ts
-import { mountAnnotationToolbar } from '@skaile-ai/annotation-inbox/mount'
+import { mountAnnotationToolbar } from '@ecsplico/annotation-inbox/mount'
 
 setup(() => mountAnnotationToolbar())
 ```
@@ -117,7 +117,7 @@ mounting it.
 A plain Vite app — no Nuxt, no Vue — is wired like Storybook, plus four pieces whose
 absence each breaks something: an ESM `vite.config.mjs`, a serve-only
 `@vitejs/plugin-vue` for the toolbar's own `.vue` files, `optimizeDeps.exclude:
-['@skaile-ai/annotation-inbox']` (else two Vues: `Cannot read properties of null (reading
+['@ecsplico/annotation-inbox']` (else two Vues: `Cannot read properties of null (reading
 'ce')`), and a mount behind `if (import.meta.env.DEV)` in the app's entry so the build
 carries none of it. The README's *A plain Vite app* has the code; copy it from there.
 

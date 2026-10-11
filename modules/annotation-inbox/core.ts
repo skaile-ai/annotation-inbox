@@ -1,5 +1,5 @@
 /**
- * `@skaile-ai/annotation-inbox` — the framework-free core: the contract types,
+ * `@ecsplico/annotation-inbox` — the framework-free core: the contract types,
  * the inbox over any unstorage `Storage`, the markdown an agent reads, and the
  * principal shape. No Vite, no Nuxt, no `node:*`; importable from a browser, a
  * worker or any server.

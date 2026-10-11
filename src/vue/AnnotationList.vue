@@ -9,7 +9,7 @@ import type { UseAnnotations } from './useAnnotations'
  * the comment, and — while open — Implement and Reject.
  *
  * Native elements only, coloured by the `--sk-*` tokens (defaults in
- * `@skaile-ai/annotation-inbox/styles/tokens.css`, each also carries a
+ * `@ecsplico/annotation-inbox/styles/tokens.css`, each also carries a
  * fallback here). State is never carried by colour alone: every badge is text.
  * Implement does not resolve anything — the host decides what implementing
  * means (the SKAILE forge hands the note to an agent) and resolves when done.

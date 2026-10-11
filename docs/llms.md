@@ -1,4 +1,4 @@
-# @skaile-ai/annotation-inbox — notes for coding agents
+# @ecsplico/annotation-inbox — notes for coding agents
 
 A human clicks an element in a running app, writes a comment, and the server stores it with
 the file and line of the template that draws the element. You read those notes, act on them,
@@ -11,7 +11,7 @@ Full operating manual: `skills/annotation-inbox/SKILL.md`. Install and deploymen
 
 There are two, and one note is identified by its `inboxId` (`<sessionId>-<n>`).
 
-| Operation | HTTP | MCP tool (stdio, `annotation-inbox-mcp`) | Node (`@skaile-ai/annotation-inbox/inbox`) |
+| Operation | HTTP | MCP tool (stdio, `annotation-inbox-mcp`) | Node (`@ecsplico/annotation-inbox/inbox`) |
 |---|---|---|---|
 | List notes | `GET /__annotations?status=open&format=markdown` | `annotations_list { status, session?, format }` | `openFileInbox(root).list({ status, sessionId? })` |
 | Resolve notes | `POST /__annotations/resolve` with `{ "ids": ["<inboxId>"], "status": "implemented" \| "rejected", "resolution": "<why>" }` | `annotations_resolve { ids, status, resolution? }` | `openFileInbox(root).resolve(ids, status, resolution, 'agent')` |
@@ -45,8 +45,8 @@ skipped is a note the human believes you read.
 
 | Entry | What |
 |---|---|
-| `@skaile-ai/annotation-inbox` | types (`InboxItem`, `InboxStatus`, `InboxTarget`), `createInbox(store)` with `subscribe`, `renderMarkdown`, `resolveTarget`, `Principal` types |
-| `/nuxt` | the Nuxt module: `modules: ['@skaile-ai/annotation-inbox/nuxt']`, options `token`, `base`, `dir`, `authorize`; Nitro hook `annotation-inbox:authorize` |
+| `@ecsplico/annotation-inbox` | types (`InboxItem`, `InboxStatus`, `InboxTarget`), `createInbox(store)` with `subscribe`, `renderMarkdown`, `resolveTarget`, `Principal` types |
+| `/nuxt` | the Nuxt module: `modules: ['@ecsplico/annotation-inbox/nuxt']`, options `token`, `base`, `dir`, `authorize`; Nitro hook `annotation-inbox:authorize` |
 | `/vite`, `/mount` | Storybook and plain Vite wiring |
 | `/inbox` | `openFileInbox(root)` for Node tools |
 | `/mcp` | the stdio server (`dist/mcp.mjs`, bin `annotation-inbox-mcp`) |

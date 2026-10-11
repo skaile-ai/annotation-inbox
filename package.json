@@ -1,5 +1,5 @@
 {
-  "name": "@skaile-ai/annotation-inbox",
+  "name": "@ecsplico/annotation-inbox",
   "version": "1.0.0",
   "type": "module",
   "description": "Annotation toolbar whose notes reach coding agents with SFC source locations: framework-free core, Nuxt module, Vite plugin, HTTP and MCP surface",

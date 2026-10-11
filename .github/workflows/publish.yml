@@ -1,11 +1,8 @@
-# Publishes the version in package.json to npmjs and to GitHub Packages when a
+# Publishes @ecsplico/annotation-inbox at the version in package.json to npmjs when a
 # `v*` tag is pushed:  git tag v1.0.0 && git push origin v1.0.0
 #
-# npmjs needs the repository secret NPM_TOKEN (an automation token with publish
-# rights on the @skaile-ai scope); the run fails before publishing anything when
-# it is missing, so a release always reaches both registries. GitHub Packages uses the workflow's own
-# GITHUB_TOKEN, which can publish only a package whose scope equals the owner of
-# this repository (@skaile-ai → the skaile-ai organisation).
+# npmjs needs the repository secret NPM_TOKEN (a token with publish rights on the
+# @ecsplico scope); the run fails before publishing anything when it is missing.
 name: publish
 
 on:
@@ -14,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -37,7 +33,7 @@ jobs:
             exit 1
           fi
           if [ -z "$NPM_TOKEN" ]; then
-            echo "secret NPM_TOKEN is missing: a release publishes to npmjs and GitHub Packages" >&2
+            echo "secret NPM_TOKEN is missing: a release publishes to npmjs" >&2
             exit 1
           fi
 
@@ -51,10 +47,3 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$RUNNER_TEMP/npmrc-npmjs"
           npm publish --access public --userconfig "$RUNNER_TEMP/npmrc-npmjs" --registry https://registry.npmjs.org
-
-      - name: Publish to GitHub Packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" > "$RUNNER_TEMP/npmrc-github"
-          npm publish --access public --userconfig "$RUNNER_TEMP/npmrc-github" --registry https://npm.pkg.github.com
