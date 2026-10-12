@@ -4,7 +4,7 @@ A human clicks an element in a running app, writes a comment, and the server sto
 the file and line of the template that draws the element. You read those notes, act on them,
 and **say what you did** — a note left `open` means the human is still waiting.
 
-Full operating manual: `skills/annotation-inbox/SKILL.md`. Install and deployment recipes:
+Full operating manual: `ai-assets/annotation-inbox/SKILL.md`. Install and deployment recipes:
 `README.md`.
 
 ## Operations

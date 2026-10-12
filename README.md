@@ -566,22 +566,27 @@ Note for anything that iterates keys: unstorage treats `:` as a segment separato
 while `getKeys('items')` works. That is why a session's membership lives in its
 `itemIds` array and not in its key prefix.
 
-## The shipped skill
+## The shipped skills
 
-`skills/annotation-inbox/SKILL.md` travels with the package: the agent that installs the
+`ai-assets/annotation-inbox/SKILL.md` travels with the package: the agent that installs the
 package also gets its operating manual — how to read the notes and map each one back to a
-line, and how to wire the toolbar into a project that does not have it yet. It is
-model-invoked, so it triggers on "I left you notes" and on "this button sits too low"
-without anybody naming the skill.
+line, and (in `setup.md`, `troubleshooting.md` beside it) how to wire the toolbar into a
+project that does not have it yet. It is model-invoked, so it triggers on "I left you
+notes" and on "this button sits too low" without anybody naming the skill.
 
-Wiring it up in a consuming project is one of:
+`ai-assets/annotation-watch/SKILL.md` is the companion for continuous work: a dispatcher
+session that watches the inbox and implements each new note through `task` subagents until
+stopped. It ships `scripts/wait-for-notes.sh`, the poller the dispatcher blocks on.
+
+Wiring them up in a consuming project is one of:
 
 ```
 npx skills add skaile-ai/annotation-inbox
-ln -s ../../node_modules/@ecsplico/annotation-inbox/skills/annotation-inbox .claude/skills/annotation-inbox
+ln -s ../../node_modules/@ecsplico/annotation-inbox/ai-assets/annotation-inbox .claude/skills/annotation-inbox
+ln -s ../../node_modules/@ecsplico/annotation-inbox/ai-assets/annotation-watch .claude/skills/annotation-watch
 ```
 
-A symlink keeps the manual in step with the package on every update; a copy is fine if
+A symlink keeps the manuals in step with the package on every update; a copy is fine if
 your skill loader does not follow links.
 
 ## What is inside
@@ -602,7 +607,8 @@ modules/annotation-inbox/runtime/mount.ts       the toolbar mount, both harnesse
 modules/annotation-inbox/runtime/inbox.ts       storage adapter, component detector, poller, base resolver
 modules/annotation-inbox/runtime/plugin.client.ts  Nuxt's entry into the mount
 dist/                                           the built entries, with declarations
-skills/annotation-inbox/SKILL.md                the agent's operating manual
+ai-assets/annotation-inbox/SKILL.md                the agent's operating manual (+ setup.md, troubleshooting.md)
+ai-assets/annotation-watch/SKILL.md                the continuous-watch dispatcher (+ scripts/wait-for-notes.sh)
 mcp/annotation-inbox/MCP.md                     the stdio server as a workspaces asset
 docs/llms.md                                    operations, HTTP and MCP spellings, closing rule
 test/                                           the contract, the adapter, the composable, the licence locks

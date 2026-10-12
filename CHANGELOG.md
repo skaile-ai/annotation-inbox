@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The shipped agent skills moved from `skills/` to `ai-assets/` (`package.json` `files`
+  ships `ai-assets`). `annotation-inbox` is now a short `SKILL.md` for reading and answering
+  notes, with the install steps in `setup.md` and fixes in `troubleshooting.md`. Symlinks
+  and copies pointing at `skills/annotation-inbox` need the new path.
+
+### Added
+
+- The `annotation-watch` skill (`ai-assets/annotation-watch/`): a dispatcher that watches
+  the inbox and implements each new note through subagents, with
+  `scripts/wait-for-notes.sh`.
+
 ## 1.1.1
 
 ### Changed
