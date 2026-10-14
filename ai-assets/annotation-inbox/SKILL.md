@@ -78,6 +78,8 @@ If your tool list has `annotations_list` and `annotations_resolve`, use them ins
 directly so they need no port, and take the same `status`, `session`, `ids` and
 `resolution`. `rejected` without a `resolution` is refused.
 
+In omp with the package's extension installed, they are plain tools (no `mcp__` prefix) that read `.data/annotations` in process: no MCP entry and no dev server.
+
 ## Mechanism questions
 
 The package README (`node_modules/@ecsplico/annotation-inbox/README.md`) is the single

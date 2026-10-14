@@ -414,6 +414,22 @@ store cannot see them; for those, a small MCP server of your own that `GET`s the
 when one is configured, and name the origin in connection errors — `fetch failed` does not
 say which address was tried.
 
+### omp extension
+
+In omp the same two tools come without an MCP server. `dist/omp.mjs` is a self-contained extension (the inbox core and `unstorage` are bundled in, since an extension is copied where no `node_modules` resolves). From a clone of this repository:
+
+```sh
+npm run build && bash scripts/install-omp-extension.sh
+```
+
+This copies the bundle to `~/.omp/agent/extensions/annotation-inbox.js` (or `$PI_CODING_AGENT_DIR/extensions/`); restart omp to load it. In any project, omp then has:
+
+- `annotations_list` and `annotations_resolve`, unprefixed, reading `<cwd>/.data/annotations` in process — no port, no dev server.
+- `/annotations` (or `/annotations open`, `/annotations all`) hands the open notes to the agent as a prompt; `/annotations status` shows the open count and whether the watch is on.
+- `/annotations watch on` (and `watch off`) polls the inbox every 5 s and wakes the session with each new note. `ANNO_WATCH=1 omp` starts the watch with the session. It is off by default and runs in the main session only, so several sessions in one project are not all woken by the same note. It shares `.data/annotations/.watch-seen` with the `annotation-watch` skill, so notes are never dispatched twice.
+
+Remove the project's `annotation-inbox` MCP entry for omp; with both, the agent sees two sets of the same tools.
+
 ## Listing and answering notes in a Vue app
 
 `./vue` is for the human side of the inbox: a host that wants its own list of what agents

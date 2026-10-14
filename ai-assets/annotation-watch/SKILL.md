@@ -13,6 +13,8 @@ Your role depends on `ANNO_WATCH`: unset, you are the **launcher** (next section
 
 The launcher hands the watch to a dispatcher session: its own, when it is fresh; otherwise a new one in its own tab.
 
+**Native watch first**: if you are in omp and `annotations_list` is already a registered tool (plain name, no `mcp__` prefix), the extension is installed and watches in-process. Tell the human to run `/annotations watch on` in the session that should work the notes (or start that session with `ANNO_WATCH=1`) instead of creating a herdr tab, and stop; skip the steps below.
+
 1. **Herdr**: confirm `HERDR_ENV=1`; if unset, stop and tell the human this skill requires running inside herdr. Read the `herdr` skill once.
 2. **Existing watch**: take your `workspace_id` and `tab_id` from `herdr pane current`. If `herdr tab list --workspace <ws>` already has a tab labelled `ano-watch`, tell the human a watch is already running there and stop.
 3. **Fresh session**: when this skill call is the session's first prompt, this session becomes the dispatcher: `herdr tab rename <tab_id> ano-watch`, then continue at Setup. Otherwise go on with step 4.
@@ -27,7 +29,7 @@ The launcher hands the watch to a dispatcher session: its own, when it is fresh;
    - **Storybook**, only when `package.json` has a `storybook` script: its port is the script's `--port`, else 6006. No answer from `curl -s localhost:<port>`: start that script as a background service named `storybook`, ready on its `Local:` log line.
 
    Done when `<origin>/__annotations` answers JSON and Storybook, if the project has one, answers on its port.
-2. **Seen file**: `.data/annotations/.watch-seen` in the project. Leave existing ids in it; delete it only when the human asks to re-dispatch everything.
+2. **Seen file**: `.data/annotations/.watch-seen` in the project (the omp extension's watcher uses the same file, so the two never redispatch each other's notes). Leave existing ids in it; delete it only when the human asks to re-dispatch everything.
 3. **Backlog**: notes already open count as new; the first wait returns them immediately.
 
 ## The loop
