@@ -3,7 +3,7 @@ import vue from 'unplugin-vue/rolldown'
 import type { UserConfig } from 'tsdown'
 
 /**
- * Eight public entries and one runtime file are built, for one reason that is Node rather than taste.
+ * Eight public entries, the omp extension and one runtime file are built, for one reason that is Node rather than taste.
  *
  * A consuming project names this package's Vite plugin from its own
  * `vite.config.ts` (and from `.storybook/main.ts`, which is loaded the same
@@ -22,6 +22,10 @@ import type { UserConfig } from 'tsdown'
  *  - `server`  (`./server`) the route table for non-Nitro servers,
  *  - `testing` (`./testing`) the storage contract suite, run by vitest,
  *  - `vue`     (`./vue`)    the composable and the reference list, built apart below.
+ *
+ * The omp extension (`omp`, `./omp`) is the odd one out: it is copied into
+ * `~/.omp/agent/extensions/`, where nothing resolves from `node_modules`, so it is
+ * built apart (below) with `unstorage` inlined and no declaration file.
  *
  * The runtime file is the Nitro handler (`dist/runtime/server/handler.mjs`).
  * Nitro does not transpile TypeScript it finds under `node_modules` — it fails
@@ -115,5 +119,28 @@ export default defineConfig([
     clean: false,
     outExtensions: () => ({ js: '.mjs' }),
     external: [/^node:/, 'h3', /^nitropack(\/|$)/],
+  },
+  /**
+   * `./omp` is the omp extension. `dist/omp.mjs` is copied into
+   * `~/.omp/agent/extensions/`, where no `node_modules` resolves, so — unlike the entries
+   * above — it must carry its dependencies: `unstorage` (and its fs driver) and the inbox core
+   * are inlined; only `node:` builtins stay external. `@modelcontextprotocol/sdk` and `zod`
+   * are not imported at runtime by this entry (`pi.zod` comes from the host), so nothing
+   * else needs inlining. It is a separate config object for that reason: `publicEntries`
+   * externalises `unstorage`.
+   */
+  {
+    entry: { omp: 'integrations/omp/annotation-inbox.ts' },
+    outDir: 'dist',
+    format: ['es'],
+    platform: 'node',
+    dts: false,
+    clean: false,
+    outExtensions: () => ({ js: '.mjs' }),
+    external: [/^node:/],
+    noExternal: [/^unstorage(\/|$)/],
+    // The fs driver loads `chokidar` lazily, for `watch()`. Left alone that becomes a sibling
+    // chunk the installer would not copy; inlined, `omp.mjs` is the whole extension.
+    outputOptions: { inlineDynamicImports: true },
   },
 ])
