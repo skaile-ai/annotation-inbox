@@ -7,7 +7,7 @@ description: Run a long-lived dispatcher that watches an annotation inbox (Nuxt,
 
 The watch runs in its own omp session in a herdr tab named `ano-watch`. That session is the **dispatcher**: a long-running loop that turns each new note in the annotation inbox into a `task` subagent's job. The dispatcher does not edit code itself; it dispatches, tracks, and makes sure every note ends `implemented` or `rejected`. The human keeps annotating in the browser while it runs.
 
-Your role depends on `ANNO_WATCH`: unset, you are the **launcher** (next section); `1`, you are the dispatcher (skip to Setup). Either way, read `skill://annotation-inbox` once first (what a note is, the `**Target:**` line, how `/resolve` works).
+Your role depends on `ANNO_WATCH`: unset, you are the **launcher** (next section); `1`, you are the dispatcher (skip to Setup), except that if `annotations_list` is already a registered tool (plain name, no `mcp__` prefix) the omp extension is installed and, with `ANNO_WATCH=1`, already watching this session in-process: tell the human that and stop, so the extension and the dispatcher loop never work the same notes. Either way, read `skill://annotation-inbox` once first (what a note is, the `**Target:**` line, how `/resolve` works).
 
 ## Launch
 

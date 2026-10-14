@@ -42,11 +42,11 @@ function fakePi(): OmpApi {
   }
 }
 
-function fakeCtx(): OmpContext {
+function fakeCtx(sessionId = 'session-1'): OmpContext {
   return {
     cwd: root,
     agent: { kind },
-    sessionManager: { getSessionId: () => 'session-1' },
+    sessionManager: { getSessionId: () => sessionId },
     ui: {
       notify: text => void notes.push(text),
       setStatus: (_key, text) => void statuses.push(text),
@@ -97,7 +97,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  // Watchers are module state keyed by session; shutting the session down is how they are released.
+  // The watcher belongs to the session runtime; shutting the session down is how it is released.
   handlers.get('session_shutdown')?.({}, fakeCtx())
   await rm(root, { recursive: true, force: true })
 })
@@ -196,6 +196,74 @@ describe('/annotations watch on', () => {
 
     expect(cleared).toEqual([{ interval: 1 }])
     expect(statuses.at(-1)).toBeUndefined()
+  })
+
+  it('names the annotations_resolve tool in the wake text, not the HTTP route', async () => {
+    await openFileInbox(root).publish(payload('a1b2c3d4e5f6', [annotation('1', 'Button sitzt zu tief')]))
+    await watchOn()
+
+    expect(sent[0]?.text).toContain('annotations_resolve')
+    expect(sent[0]?.text).not.toContain('POST /__annotations/resolve')
+  })
+
+  it('does the same for /annotations and /annotations all', async () => {
+    await openFileInbox(root).publish(payload('a1b2c3d4e5f6', [annotation('1', 'Button sitzt zu tief')]))
+
+    await commands.get('annotations')?.handler('', fakeCtx())
+    await commands.get('annotations')?.handler('all', fakeCtx())
+
+    expect(sent).toHaveLength(2)
+    for (const message of sent) {
+      expect(message.text).toContain('Resolve: call annotations_resolve')
+      expect(message.text).not.toContain('/__annotations/resolve')
+    }
+  })
+})
+
+describe('session switch', () => {
+  const lastNote = () => notes.at(-1) ?? ''
+
+  it('keeps the watcher reachable after /new: status sees it, watch off stops it', async () => {
+    await openFileInbox(root).publish(payload('a1b2c3d4e5f6', [annotation('1', 'Button sitzt zu tief')]))
+    await commands.get('annotations')?.handler('watch on', fakeCtx('before'))
+    await vi.waitFor(() => expect(statuses).toContain('1 open · watch'))
+    expect(intervals).toHaveLength(1)
+
+    // /new: same runtime, new session id, `session_switch` and no `session_shutdown`.
+    const after = fakeCtx('after')
+    handlers.get('session_switch')?.({ reason: 'new' }, after)
+    // The old timer is released and exactly one new one is running.
+    expect(cleared).toEqual([{ interval: 1 }])
+    expect(intervals).toHaveLength(2)
+
+    await commands.get('annotations')?.handler('status', after)
+    expect(lastNote()).toContain('watch on')
+
+    // `watch on` again must not start a second watcher beside the first.
+    await commands.get('annotations')?.handler('watch on', after)
+    expect(intervals).toHaveLength(2)
+
+    await commands.get('annotations')?.handler('watch off', after)
+    expect(cleared).toEqual([{ interval: 1 }, { interval: 2 }])
+    expect(statuses.at(-1)).toBeUndefined()
+
+    await commands.get('annotations')?.handler('status', after)
+    expect(lastNote()).toContain('watch off')
+  })
+
+  it('finds the watcher from a command ctx whose session id is not the one that started it', async () => {
+    await commands.get('annotations')?.handler('watch on', fakeCtx('before'))
+
+    await commands.get('annotations')?.handler('status', fakeCtx('after'))
+    expect(lastNote()).toContain('watch on')
+
+    await commands.get('annotations')?.handler('watch off', fakeCtx('after'))
+    expect(cleared).toEqual([{ interval: 1 }])
+  })
+
+  it('starts nothing on a switch when no watcher was running', () => {
+    handlers.get('session_switch')?.({ reason: 'new' }, fakeCtx('after'))
+    expect(intervals).toEqual([])
   })
 })
 

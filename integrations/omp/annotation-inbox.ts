@@ -50,7 +50,10 @@ export interface OmpApi {
   sendUserMessage: (text: string, options: { deliverAs?: 'aside'; attribution: 'agent' }) => void
   registerTool: (tool: Record<string, unknown>) => void
   registerCommand: (name: string, command: Record<string, unknown>) => void
-  on: (event: 'session_start' | 'session_shutdown', handler: (event: unknown, ctx: OmpContext) => void) => void
+  on: (
+    event: 'session_start' | 'session_switch' | 'session_shutdown',
+    handler: (event: unknown, ctx: OmpContext) => void,
+  ) => void
 }
 
 export interface Watcher {
@@ -93,8 +96,9 @@ export async function markSeen(cwd: string, ids: string[]): Promise<void> {
   await appendFile(join(cwd, INBOX_DIR, SEEN_FILE), `${ids.join('\n')}\n`)
 }
 
+/** The resolve hint names the tool: no dev server is needed to answer a note. */
 export function renderWake(items: InboxItem[]): string {
-  return `New annotations from the running app (${items.length}). Implement each, then call annotations_resolve with its inboxId (a rejection needs a resolution).\n\n${renderMarkdown(items, 'open')}`
+  return `New annotations from the running app (${items.length}). Implement each, then call annotations_resolve with its inboxId (a rejection needs a resolution).\n\n${renderMarkdown(items, 'open', { resolveVia: 'tool' })}`
 }
 
 /**
@@ -135,13 +139,6 @@ export function createWatcher(pi: OmpApi, ctx: OmpContext, cwd: string): Watcher
       ctx.ui?.setStatus?.(STATUS_KEY, undefined)
     },
   }
-}
-
-/** Module state is shared across child sessions, so watchers are keyed by session. */
-const watchers = new Map<string, Watcher>()
-
-function sessionKey(ctx: OmpContext): string {
-  return ctx.sessionManager?.getSessionId?.() ?? ctx.cwd
 }
 
 export default function annotationInbox(pi: OmpApi): void {
@@ -185,15 +182,19 @@ export default function annotationInbox(pi: OmpApi): void {
     },
   })
 
+  // One watcher per factory instance, i.e. per omp session runtime. Child sessions run the
+  // factory again and get their own (never started) slot. `/new`, `/resume` and `/fork` keep
+  // the runtime and change the session id, so the watcher is not keyed by session id: it is
+  // rebound to the new context on `session_switch` and stays reachable from the commands.
+  let watcher: Watcher | undefined
+
   function startWatch(ctx: OmpContext): void {
-    const key = sessionKey(ctx)
-    if (!watchers.has(key)) watchers.set(key, createWatcher(pi, ctx, ctx.cwd))
+    watcher ??= createWatcher(pi, ctx, ctx.cwd)
   }
 
-  function stopWatch(ctx: OmpContext): void {
-    const key = sessionKey(ctx)
-    watchers.get(key)?.stop()
-    watchers.delete(key)
+  function stopWatch(): void {
+    watcher?.stop()
+    watcher = undefined
   }
 
   pi.registerCommand('annotations', {
@@ -218,7 +219,9 @@ export default function annotationInbox(pi: OmpApi): void {
         }
         // No `deliverAs`: starts a prompt when idle, queues a steer while streaming.
         pi.sendUserMessage(
-          all ? `Annotations of this project:\n\n${renderMarkdown(items, 'all')}` : renderWake(items),
+          all
+            ? `Annotations of this project:\n\n${renderMarkdown(items, 'all', { resolveVia: 'tool' })}`
+            : renderWake(items),
           { attribution: 'agent' },
         )
         return
@@ -234,7 +237,7 @@ export default function annotationInbox(pi: OmpApi): void {
           notify('Annotation watch on · polling every 5 s', 'info')
         }
         else {
-          stopWatch(ctx)
+          stopWatch()
           notify('Annotation watch off', 'info')
         }
         return
@@ -242,7 +245,7 @@ export default function annotationInbox(pi: OmpApi): void {
 
       if (arg === 'status' && words.length === 1) {
         const open = await inboxFor(ctx.cwd).list({ status: 'open' })
-        notify(`${open.length} open · watch ${watchers.has(sessionKey(ctx)) ? 'on' : 'off'} · ${where}`, 'info')
+        notify(`${open.length} open · watch ${watcher ? 'on' : 'off'} · ${where}`, 'info')
         return
       }
 
@@ -251,14 +254,24 @@ export default function annotationInbox(pi: OmpApi): void {
   })
 
   // Off by default: several omp sessions in one project would each be woken by the same note.
-  // `ANNO_WATCH=1` is what the `annotation-watch` skill sets on the herdr tab it creates.
+  // `ANNO_WATCH=1` opts a session in. It is also what the `annotation-watch` skill sets on the
+  // dispatcher's herdr tab; the skill sees this tool registered and leaves the watching to it.
   pi.on('session_start', (_event, ctx) => {
     if (ctx.agent?.kind === 'sub') return
     if (process.env[WATCH_ENV] === '1') startWatch(ctx)
   })
 
-  // Managed timers are cleared by the host; the status entry and the map entry are not.
+  // The session changed under the same runtime: hand the running watcher the new context, so
+  // its timer, status entry and wake-ups belong to the session that is now current.
+  pi.on('session_switch', (_event, ctx) => {
+    if (ctx.agent?.kind === 'sub' || !watcher) return
+    stopWatch()
+    startWatch(ctx)
+  })
+
+  // Managed timers are cleared by the host; the status entry and the watcher slot are not.
   pi.on('session_shutdown', (_event, ctx) => {
-    stopWatch(ctx)
+    if (ctx.agent?.kind === 'sub') return
+    stopWatch()
   })
 }

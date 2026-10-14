@@ -120,16 +120,21 @@ const line = (label: string, value: string | undefined) =>
  * The listing an agent reads. Written for a reader who must be able to act and
  * then say so: every item names the id and the exact request that closes it,
  * because a listing that cannot be answered leaves the reviewer waiting.
+ * `resolveVia: 'tool'` names the `annotations_resolve` tool call instead of the
+ * HTTP route, for readers that have the tool and may have no dev server.
  */
 export function renderMarkdown(
   items: InboxItem[],
   status: InboxStatus | 'closed' | 'all',
-  options: { base?: string } = {},
+  options: { base?: string; resolveVia?: 'http' | 'tool' } = {},
 ): string {
+  const resolveArgs = '{"ids":["<inboxId>"],"status":"implemented"|"rejected","resolution":"<why>"}'
   const head = [
     `## Annotation inbox — ${items.length} ${status}`,
     '',
-    `Resolve: POST ${inboxRoutes(options.base).resolve} {"ids":["<inboxId>"],"status":"implemented"|"rejected","resolution":"<why>"}`,
+    options.resolveVia === 'tool'
+      ? `Resolve: call annotations_resolve ${resolveArgs}`
+      : `Resolve: POST ${inboxRoutes(options.base).resolve} ${resolveArgs}`,
   ]
   const body = items.flatMap(item => [
     '',

@@ -37,9 +37,11 @@ export async function runList(
 ): Promise<string> {
   const { status, session, format } = args
   const items = await inbox.list({ status, sessionId: session })
+  // Both callers (MCP server, omp extension) also expose `annotations_resolve`, and the
+  // omp reader may have no dev server, so the hint names the tool rather than the route.
   return format === 'json'
     ? JSON.stringify({ status, items } satisfies InboxListing)
-    : renderMarkdown(items, status)
+    : renderMarkdown(items, status, { resolveVia: 'tool' })
 }
 
 export async function runResolve(
