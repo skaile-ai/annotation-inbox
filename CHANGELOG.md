@@ -8,12 +8,23 @@
   ships `ai-assets`). `annotation-inbox` is now a short `SKILL.md` for reading and answering
   notes, with the install steps in `setup.md` and fixes in `troubleshooting.md`. Symlinks
   and copies pointing at `skills/annotation-inbox` need the new path.
+- The markdown listing returned by the `annotations_list` tool (MCP and omp) now says
+  `Resolve: call annotations_resolve …` instead of the HTTP route. `renderMarkdown` takes
+  `resolveVia: 'http' | 'tool'`; the default and the `/__annotations?format=markdown`
+  route are unchanged.
 
 ### Added
 
 - The `annotation-watch` skill (`ai-assets/annotation-watch/`): a dispatcher that watches
   the inbox and implements each new note through subagents, with
   `scripts/wait-for-notes.sh`.
+- An omp extension, `./omp` (`dist/omp.mjs`, self-contained). Install it user-wide with
+  `scripts/install-omp-extension.sh`. It registers `annotations_list` and
+  `annotations_resolve` as native tools that read `.data/annotations` in process (no MCP
+  entry, no dev server), a `/annotations [open|all] | watch on|off | status` command, and
+  a watcher that wakes the main session with new notes every 5 s when turned on with
+  `/annotations watch on` or `ANNO_WATCH=1`. It shares `.watch-seen` with
+  `annotation-watch`, which defers to it when the native tools are present.
 
 ## 1.1.1
 
